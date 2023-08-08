@@ -1,0 +1,754 @@
+---
+title: "estimate_TRFs_for_SFs"
+author: "Richard Schweitzer"
+date: "2023-05-26"
+output: github_document
+---
+
+Libraries...
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(scales)
+library(viridis)
+library(cowplot)
+library(minpack.lm)
+library(pracma)
+library(mgcv)
+```
+
+
+# 1. Replicate the findings by Burr & Morrone (1993)
+
+The model and convolution operation in Fig. 2. 
+
+```{r}
+source("exp_damp_sin.R")
+
+# create temporal response function
+framedur <- 1000/120
+t_res <- framedur/12
+trf <- exp_damp_sin(x_step = t_res)
+trf_time <- trf[[2]]
+trf <- trf[[1]]
+plot(trf_time, trf)
+
+# create a sequence of SOA=60 ms and two positive pulses, and pos/neg pulses
+t_stim_on <- 10
+soa <- 60
+stim_time <- seq(1, 500, by = t_res)
+# ... two positive pulses
+stim_1 <- rep(0, times = length(stim_time))
+stim_1[stim_time >= t_stim_on & stim_time <= t_stim_on+framedur] <- 1
+stim_1[stim_time >= t_stim_on+soa & stim_time <= t_stim_on+soa+framedur] <- 1
+# ... one positive, one negative
+stim_2 <- rep(0, times = length(stim_time))
+stim_2[stim_time >= t_stim_on & stim_time <= t_stim_on+framedur] <- 1
+stim_2[stim_time >= t_stim_on+soa & stim_time <= t_stim_on+soa+framedur] <- (-1)
+plot(stim_time, stim_2, col = "red", type = "l")
+lines(stim_time, stim_1, col = "black")
+
+# now convolute -- we should get Fig. 2 of the paper
+resp_1 <- zapsmall(convolve(stim_1, rev(trf), type = "open"))[1:length(stim_1)]
+resp_2 <- zapsmall(convolve(stim_2, rev(trf), type = "open"))[1:length(stim_2)]
+plot(stim_time, resp_2, type = "l", col = "red")
+lines(stim_time, resp_1, col = "black")
+```
+
+This above solution uses convolution, but let's try the solution proposed in the paper...
+Turns out that to reproduce the absolute values in Fig. 1, we *a0* parameter must be *1.8e3*, not  *1.8e5* as stated in the paper. 
+```{r}
+two_pulse_response <- function(t_ms, soa_1 = 0, soa_2, polarity, K = 1,
+                               a0 = 1.8e3, a1 = 13, a2 = 5, a3 = 27.3 ) {
+  res <- K * ( exp_damp_sin_fun(t_ms = t_ms - soa_1, a0 = a0, a1 = a1, a2 = a2, a3 = a3) + 
+                polarity * exp_damp_sin_fun(t_ms = t_ms - soa_2, a0 = a0, a1 = a1, a2 = a2, a3 = a3) )
+  return(res)
+}
+
+# again, replication of Fig. 2
+soa_60ms_pospos <- two_pulse_response(t_ms = stim_time, soa_1 = 10, soa_2 = 70, polarity = 1)
+soa_60ms_posneg <- two_pulse_response(t_ms = stim_time, soa_1 = 10, soa_2 = 70, polarity = -1)
+plot(stim_time, soa_60ms_posneg, type = "l", col = "red")
+lines(stim_time, soa_60ms_pospos, col = "black")
+
+# probability summation with integrate
+beta_now <- 4
+integrate(f = function(x) { 
+  abs(two_pulse_response(t_ms = x, soa_1 = 0, soa_2 = 60, polarity = 1))^beta_now }, lower = 0, upper = Inf)$value^(1/beta_now)
+
+```
+
+And now the model results from Figure 1B - should be the result of the probability summation.
+We can use the code above and iterate over SOAs
+
+```{r}
+# beta parameter for probability summation:
+beta <- 4
+# not preallocate
+prob_sum_results <- NULL
+# loop over SOAs
+for (soa in seq(8.3, 300, by = 8.3)) {
+  ## the convolution solution
+  trf_now <- exp_damp_sin(x_step = t_res, a0 = 1.8e3)
+  trf_now <- trf_now[[1]]
+  # the stimuli (see above)
+  stim_time <- seq(1, 1000, by = t_res)
+  stim_1 <- rep(0, times = length(stim_time))
+  stim_1[stim_time >= t_stim_on & stim_time <= t_stim_on+framedur] <- 1 / 12
+  stim_1[stim_time >= t_stim_on+soa & stim_time <= t_stim_on+soa+framedur] <- 1 / 12
+  stim_2 <- rep(0, times = length(stim_time))
+  stim_2[stim_time >= t_stim_on & stim_time <= t_stim_on+framedur] <- 1 / 12
+  stim_2[stim_time >= t_stim_on+soa & stim_time <= t_stim_on+soa+framedur] <- (-1) / 12
+  # response
+  resp_1 <- zapsmall(convolve(stim_1, rev(trf_now), type = "open"))[1:length(stim_1)]
+  resp_2 <- zapsmall(convolve(stim_2, rev(trf_now), type = "open"))[1:length(stim_2)]
+  # plot(stim_time, resp_2, type = "l", col = "red")
+  # lines(stim_time, resp_1, col = "black")
+  # probability summation
+  sum_1 <- trapz(x = stim_time, y = abs(resp_1)^beta)^(1/beta)
+  sum_2 <- trapz(x = stim_time, y = abs(resp_2)^beta)^(1/beta)
+  ## the integration-based solution:
+  inta_1 <- integrate(f = function(x) { 
+    abs(two_pulse_response(t_ms = x, soa_1 = 0, soa_2 = soa, polarity = 1))^beta }, lower = 0, upper = Inf)$value^(1/beta)
+  inta_2 <- integrate(f = function(x) { 
+    abs(two_pulse_response(t_ms = x, soa_1 = 0, soa_2 = soa, polarity = -1))^beta }, lower = 0, upper = Inf)$value^(1/beta)
+  # save results
+  prob_sum_results <- rbind(prob_sum_results, 
+                            data.table(soa = soa, sum_pospos = sum_1, sum_posneg = sum_2, 
+                                       inta_pospos = inta_1, inta_posneg = inta_2))
+}
+# now this should match Fig. 1B - DB's luminance data
+# ... sum
+plot(prob_sum_results$soa, prob_sum_results$sum_posneg, col = "red", type = "l", 
+     ylim = c(min(prob_sum_results[ ,c(2,3)]), max(prob_sum_results[ ,c(2,3)]) ))
+lines(prob_sum_results$soa, prob_sum_results$sum_pospos, col = "black", type = "l")
+# ... integrate
+plot(prob_sum_results$soa, prob_sum_results$inta_posneg, col = "red", type = "l", 
+     ylim = c(min(prob_sum_results[ ,c(4,5)]), max(prob_sum_results[ ,c(4,5)]) ))
+lines(prob_sum_results$soa, prob_sum_results$inta_pospos, col = "black", type = "l")
+# ... integrate in loglog coordinates
+ggplot(data = prob_sum_results, aes(x = soa, y = inta_pospos, color = "pos-pos")) + 
+  geom_line() + 
+  geom_line(data = prob_sum_results, aes(x = soa, y = inta_posneg, color = "pos-neg")) + 
+  scale_y_log10() + annotation_logticks(sides = "l") + 
+  theme_classic()
+```
+
+Now, finally, let's try to predict the flicker sensitivity data.
+Burr & Morrone used flicker from 0.5 to 50 Hz with a Gaussian temporal envelope of SD=230 ms. 
+We'll create that data, too.
+
+```{r}
+source('create_flicker_stim.R')
+
+# parameters
+(temporal_gaussian_sd <- 28 * framedur)
+pres_dur <- 10*temporal_gaussian_sd
+# not preallocate
+flicker_sens_results <- NULL
+# loop over SOAs
+for (tfreq in exp(seq(log(1), log(40), length.out = 40)) ) {
+  ## solution 1
+  trf_now <- exp_damp_sin(x_step = t_res, a0 = 1.8e3)
+  trf_now <- trf_now[[1]] #/ sum(trf_now[[1]])
+  # gaussian envelope
+  stim_time <- seq(0, pres_dur, by = t_res)
+  gaussian <- dnorm(x = stim_time, mean = pres_dur/2, sd = temporal_gaussian_sd)
+  gaussian <- gaussian / max(gaussian)
+  x <- create_flicker_stim(pres_dur, t_res, tfreq) # flicker stimulus
+  stim_tfreq <- x #* gaussian
+  #plot(stim_time, stim_tfreq, type = "l")
+  # response
+  resp_tfreq <- zapsmall(convolve(stim_tfreq, rev(trf_now), type = "open"))[1:length(stim_tfreq)]
+  #plot(stim_time, resp_tfreq, type = "l", col = "red")
+  # probability summation
+  sum_tfreq <- trapz(x = stim_time, y = abs(resp_tfreq)^beta)^(1/beta)
+  # save results
+  flicker_sens_results <- rbind(flicker_sens_results, 
+                                data.table(tfreq = tfreq, sum_tfreq = sum_tfreq, inta_tfreq = NaN))
+}
+# sum approach
+ggplot(data = flicker_sens_results, aes(x = tfreq, y = sum_tfreq)) + 
+  geom_line() + 
+  annotation_logticks() + 
+  scale_x_log10() + 
+  scale_y_log10(#breaks = trans_breaks("log10", function(x) 10^x), 
+                #labels = trans_format("log10", math_format(10^.x))
+    ) + 
+  theme_classic()
+```
+
+That worked so so, but sufficiently well. 
+
+# 2. The IRF used by Bergen & Wilson (1984)
+
+This function here may be better suited, actually:
+
+```{r}
+source('bergen_wilson.R')
+
+# looks as predicted with standard parameters:
+plot(bergen_wilson(x_step = t_res)[[2]], bergen_wilson(x_step = t_res)[[1]])
+
+```
+
+# 3. Fit flicker sensitivity data to estimate TRFs
+
+Let's combine the the two functions for the IRF and the stimulus generation.
+
+```{r}
+source("flicker_to_sens.R")
+
+# test this (Burr & Morrone):
+flicker_to_sens(tfreqs = c(1, 40), 
+                a0 = 1.8e3, a1 = 13, a2 = 5, a3 = 27.3, 
+                t_res = 1000/1440, pres_dur = 5000, ramp_sd = 28 * (1000/120))
+# ... and Bergen & Wilson:
+flicker_to_sens(tfreqs = c(1, 40), 
+                a0 = 1.8e3, a1 = 0.92, a2 = 9.5, a3 = 4.0, a4 = 1.5, 
+                t_res = 1000/1440, pres_dur = 5000, ramp_sd = 28 * (1000/120))
+```
+
+Load digitized flicker sensitivity data from Kelly (1969) and try to fit the data with the above function
+
+```{r}
+Kelly69 <- read.csv(file = "Kelly_1969_data_Fig8.csv")
+str(Kelly69)
+Kelly69$sens <- 1 / Kelly69$modulation
+setDT(Kelly69)
+
+# have a look:
+ggplot(data = Kelly69, aes(x = tfreq, y = sens, color = as.factor(SF) )) + 
+  geom_point() + geom_line() + 
+  scale_x_log10() + scale_y_log10() + theme_classic()
+
+# let's try to fit
+Kelly69[ , fit_nls_burr := NaN]
+Kelly69[ , fit_nls_bergen := NaN]
+for (sf_now in sort(unique(Kelly69$SF))) {
+  # Burr & Morrone
+  print(paste(sf_now, "Burr & Morrone"))
+  fit1 <- nlsLM(data = Kelly69, subset = SF==sf_now, 
+                formula = log(sens) ~ log(flicker_to_sens(tfreq, 
+                                                          a0 = a0, a1 = a1, a2 = a2, a3 = a3, 
+                                                          t_res = 1000/1440, 
+                                                          pres_dur = 8 * 28 * (1000/120), 
+                                                          ramp_sd = 28 * (1000/120)
+                                                          ) ), 
+                start = c(a0 = 1.8e3, a1 = 13, a2 = 5, a3 = 27.3), trace = TRUE, 
+                lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0) )
+  coef_fit1 <- coefficients(fit1)
+  # Bergen & Wilson
+  print(paste(sf_now, "Bergen & Wilson"))
+  fit2 <- nlsLM(data = Kelly69, subset = SF==sf_now, 
+                formula = log(sens) ~ log(flicker_to_sens(tfreq, 
+                                                          a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4,
+                                                          t_res = 1000/1440, 
+                                                          pres_dur = 8 * 28 * (1000/120), 
+                                                          ramp_sd = 28 * (1000/120)
+                                                          ) ), 
+                start = c(a0 = 400, a1 = 1, a2 = 10, a3 = 4.0, a4 = 1.5), trace = TRUE, 
+                lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0, a4 = 0) )
+  coef_fit2 <- coefficients(fit2)
+  # plot both functions
+  plot(exp_damp_sin(a0 = coef_fit1[1], a1 = coef_fit1[2], a2 = coef_fit1[3], a3 = coef_fit1[4])[[1]], main = sf_now)
+  points(bergen_wilson(A = coef_fit2[1], B = coef_fit2[2], tau = coef_fit2[3], n = coef_fit2[4], k = coef_fit2[5])[[1]], col = "red")
+  # model comparison
+  print(anova(fit1, fit2))
+  # predict based on fits fits
+  Kelly69[SF==sf_now, fit_nls_burr := exp(predict(fit1))]
+  Kelly69[SF==sf_now, fit_nls_bergen := exp(predict(fit2))]
+}
+# look at fits
+ggplot(data = Kelly69, aes(x = tfreq, y = sens, color = as.factor(SF) )) + 
+  geom_point() + 
+  geom_line(data = Kelly69, aes(x = tfreq, y = fit_nls_burr, color = as.factor(SF), linetype = "Burr & Morrone")) + 
+  geom_line(data = Kelly69, aes(x = tfreq, y = fit_nls_bergen, color = as.factor(SF), linetype = "Bergen & Wilson")) + 
+  scale_x_log10() + scale_y_log10() + theme_classic() + 
+  labs(x = "Temporal frequency [Hz]", y = "Contrast sensitivity", color = "SF", linetype = "Fit")
+
+```
+
+Both of the two formulations of the TRF seem to fit the data well. 
+
+Now we can try to fit Kelly's (1979) stabilized data that can be approximated by a function. 
+
+```{r}
+source('kelly_vel.R') # this is Kelly's function
+source('get_best_NLS.R') # for rigorous fitting
+
+Kelly_stabilized <- expand.grid(list(TF = 10^(linspace(log10(0.5), log10(50), 33)), 
+                                     SF = 10^(linspace(log10(0.05), log10(10), 31)) 
+                                     ))
+setDT(Kelly_stabilized)
+# apply the factor of 2 for flicker thresholds (see Kelly, 1979)
+Kelly_stabilized[ , sens := kelly_vel(sf = SF, v = TF / SF) / 2] 
+
+# this is Kelly's surface:
+p_kelly_surface <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = log10(sens) )) + 
+  #geom_raster(interpolate = TRUE) + 
+  geom_contour() + geom_contour_filled(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  #scale_fill_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + theme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+p_kelly_surface
+
+# parameters for fitting
+do_plot <- FALSE
+pres_dur_stabilized <- 4 * 8 * 28 * (1000/120)
+ramp_sd_stabilized <- 4 * 28 * (1000/120)
+beta_stabilized <- 1.5
+update_start <- FALSE # use starting parameters of previous fit? 
+start_burr <- c(a0 = 1/4, a1 = 10, a2 = 3, a3 = 5)  # , G = 1.4
+start_bergen <- c(a0 = 1/4, a1 = 0.92, a2 = 6, a3 = 10, a4 = 1.5)
+start_params_n <- 3 # for rigorous fitting set >1, how many steps between lowest and highest starting value?
+# preallocate
+Kelly_stabilized[ , fit_nls_burr := NaN]
+Kelly_stabilized[ , fit_nls_bergen := NaN]
+Kelly_stabilized[ , fit_nls_burr_rigorous := NaN]
+Kelly_stabilized[ , fit_nls_bergen_rigorous := NaN]
+Kelly_IRFs <- NULL
+Kelly_IRF_coefs <- NULL
+# start cluster if necessary
+if (start_params_n > 1) {
+  library(parallel)
+  (n_cores <- detectCores()-2) # how many cores?
+  library(doParallel)
+  par_cluster <- makeCluster(n_cores) # , outfile="" # for verbose parallel output
+  registerDoParallel(par_cluster)
+  # for some reason, we must manually export our functions...
+  clusterExport(cl = par_cluster, 
+                varlist = c("exp_damp_sin", "exp_damp_sin_fun", "bergen_wilson", "bergen_wilson_fun", 
+                            "create_flicker_stim", "flicker_to_sens") 
+  )
+} else {
+  par_cluster <- NULL
+}
+# fit a IRF to each SF
+for (sf_now in sort(unique(Kelly_stabilized$SF))) {
+  # Burr & Morrone
+  print(paste(sf_now, "Burr & Morrone"))
+  if (start_params_n > 1) {
+    fit1_stab <- get_best_NLS_foreach(cl = par_cluster, 
+                                      df = Kelly_stabilized[SF==sf_now], 
+                                      model_form = paste0("log(sens) ~ log(flicker_to_sens(tfreqs = TF, 
+                                                           a0 = a0, a1 = a1, a2 = a2, a3 = a3, 
+                                                           t_res = 1000/1440, 
+                                                           pres_dur = ", pres_dur_stabilized, ", ",
+                                                           "ramp_sd = ", ramp_sd_stabilized, ", ",
+                                                           "beta = ", beta_stabilized, ", ",
+                                                           "G = 1))"), 
+                                      use_robust = FALSE, 
+                                      model_control = nls.lm.control(maxiter = 200), 
+                                      absolute_lowest = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0),
+                                      start_params_low = start_burr - start_burr*0.5,
+                                      start_params_high = start_burr + start_burr*0.5,
+                                      start_params_n = start_params_n, 
+                                      debug_mode = FALSE
+                                      )
+  } 
+  fit1_stab_s <- nlsLM(data = Kelly_stabilized, subset = SF==sf_now, 
+                       formula = log(sens) ~ log(flicker_to_sens(tfreqs = TF, 
+                                                                 a0 = a0, a1 = a1, a2 = a2, a3 = a3, 
+                                                                 t_res = 1000/1440, 
+                                                                 pres_dur = pres_dur_stabilized, 
+                                                                 ramp_sd = ramp_sd_stabilized, 
+                                                                 beta = beta_stabilized, 
+                                                                 G = 1) ), 
+                       weights = 1/sens, # use weights to account for lowest sensitivities?
+                       start = start_burr, 
+                       lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0),  # , G = 1
+                       trace = FALSE, control = nls.lm.control(maxiter = 200)
+  )
+  coef_fit1_stab <- coefficients(fit1_stab)
+  coef_fit1_stab_s <- coefficients(fit1_stab_s)
+  if (update_start) {
+    start_burr <- coef_fit1_stab_s
+  }
+  # Bergen & Wilson
+  print(paste(sf_now, "Bergen & Wilson"))
+  if (start_params_n > 1) {
+    fit2_stab <- get_best_NLS_foreach(cl = par_cluster, 
+                                      df = Kelly_stabilized[SF==sf_now], 
+                                      model_form = paste0("log(sens) ~ log(flicker_to_sens(tfreqs = TF, 
+                                                           a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4,
+                                                           t_res = 1000/1440, 
+                                                           pres_dur = ", pres_dur_stabilized, ", ",
+                                                           "ramp_sd = ", ramp_sd_stabilized, ", ",
+                                                           "beta = ", beta_stabilized, ", ",
+                                                           "G = 1))"), 
+                                      use_robust = FALSE, 
+                                      model_control = nls.lm.control(maxiter = 200), 
+                                      absolute_lowest = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0, a4 = 0),
+                                      start_params_low = start_bergen - start_bergen*0.5,
+                                      start_params_high = start_bergen + start_bergen*0.5,
+                                      start_params_n = start_params_n, 
+                                      debug_mode = FALSE
+                                      )
+  } 
+  fit2_stab_s <- nlsLM(data = Kelly_stabilized, subset = SF==sf_now, 
+                       formula = log(sens) ~ log(flicker_to_sens(tfreqs = TF, 
+                                                                 a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4,
+                                                                 t_res = 1000/1440, 
+                                                                 pres_dur = pres_dur_stabilized, 
+                                                                 ramp_sd = ramp_sd_stabilized,
+                                                                 beta = beta_stabilized, 
+                                                                 G = 1
+                       ) ), 
+                       #weights = 1/sens, # use weights to account for lowest sensitivities?
+                       start = start_bergen, 
+                       lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0, a4 = 0), 
+                       trace = FALSE, control = nls.lm.control(maxiter = 200) )
+#  plot(exp(predict(fit2_stab)), type = "l")
+#  points(Kelly_stabilized[SF==sf_now, sens], col = "red")
+  coef_fit2_stab <- coefficients(fit2_stab)
+  coef_fit2_stab_s <- coefficients(fit2_stab_s)
+  if (update_start) {
+    start_bergen <- coef_fit2_stab_s
+  }
+  # model comparison
+  if (start_params_n > 1) {
+    print(anova(fit1_stab, fit2_stab))
+  }
+  print(anova(fit1_stab_s, fit2_stab_s))
+  # save parameters
+  if (start_params_n > 1) {
+    Kelly_IRF_coefs <- rbind(Kelly_IRF_coefs, 
+                             data.table(SF = sf_now, model = "Burr & Morrone", fit_type = "rigorous",
+                                        a0 = coef_fit1_stab[1], a1 = coef_fit1_stab[2], a2 = coef_fit1_stab[3], a3 = coef_fit1_stab[4], 
+                                        a4 = NaN, G = coef_fit1_stab[5], rss = summary(fit1_stab)$sigma))
+    Kelly_IRF_coefs <- rbind(Kelly_IRF_coefs, 
+                             data.table(SF = sf_now, model = "Bergen & Wilson", fit_type = "rigorous",
+                                        a0 = coef_fit2_stab[1], a1 = coef_fit2_stab[2], a2 = coef_fit2_stab[3], a3 = coef_fit2_stab[4], 
+                                        a4 = coef_fit2_stab[5], G = coef_fit2_stab[6], rss = summary(fit2_stab)$sigma))
+  }
+  Kelly_IRF_coefs <- rbind(Kelly_IRF_coefs, 
+                           data.table(SF = sf_now, model = "Burr & Morrone", fit_type = "simple",
+                                      a0 = coef_fit1_stab_s[1], a1 = coef_fit1_stab_s[2], a2 = coef_fit1_stab_s[3], a3 = coef_fit1_stab_s[4], 
+                                      a4 = NaN, G = coef_fit1_stab_s[5], rss = summary(fit1_stab_s)$sigma))
+  Kelly_IRF_coefs <- rbind(Kelly_IRF_coefs, 
+                           data.table(SF = sf_now, model = "Bergen & Wilson", fit_type = "simple",
+                                      a0 = coef_fit2_stab_s[1], a1 = coef_fit2_stab_s[2], a2 = coef_fit2_stab_s[3], a3 = coef_fit2_stab_s[4], 
+                                      a4 = coef_fit2_stab_s[5], G = coef_fit2_stab_s[6], rss = summary(fit2_stab_s)$sigma))
+  # extract IRF waveforms
+  if (start_params_n > 1) {
+    irf_stab_fit1 <- exp_damp_sin(x_dur = 300, x_step = t_res, 
+                                  a0 = coef_fit1_stab[1], a1 = coef_fit1_stab[2], a2 = coef_fit1_stab[3], a3 = coef_fit1_stab[4])
+    irf_stab_fit2 <- bergen_wilson(x_dur = 300, x_step = t_res, 
+                                   A = coef_fit2_stab[1], B = coef_fit2_stab[2], tau = coef_fit2_stab[3], 
+                                   n = coef_fit2_stab[4], k = coef_fit2_stab[5])
+  }
+  irf_stab_fit1_s <- exp_damp_sin(x_dur = 300, x_step = t_res, 
+                                  a0 = coef_fit1_stab_s[1], a1 = coef_fit1_stab_s[2], a2 = coef_fit1_stab_s[3], a3 = coef_fit1_stab_s[4])
+  irf_stab_fit2_s <- bergen_wilson(x_dur = 300, x_step = t_res, 
+                                   A = coef_fit2_stab_s[1], B = coef_fit2_stab_s[2], tau = coef_fit2_stab_s[3], 
+                                   n = coef_fit2_stab_s[4], k = coef_fit2_stab_s[5])
+  if (do_plot) {
+    plot(irf_stab_fit1[[2]], irf_stab_fit1[[1]], main = sf_now)
+    points(irf_stab_fit2[[2]], irf_stab_fit2[[1]], col = "red")
+  }
+  # add
+  Kelly_IRFs <- rbind(Kelly_IRFs, data.table(irf_time = irf_stab_fit1_s[[2]], 
+                                             irf_burr = irf_stab_fit1_s[[1]], 
+                                             irf_bergen = irf_stab_fit2_s[[1]],
+                                             SF = sf_now, 
+                                             fit_type = "simple"))
+  if (start_params_n > 1) {
+    Kelly_IRFs <- rbind(Kelly_IRFs, data.table(irf_time = irf_stab_fit1[[2]], 
+                                               irf_burr = irf_stab_fit1[[1]], 
+                                               irf_bergen = irf_stab_fit2[[1]],
+                                               SF = sf_now, 
+                                               fit_type = "rigorous"))
+  }
+  # compare fit
+  Kelly_stabilized[SF==sf_now, fit_nls_burr := exp(predict(fit1_stab_s))]
+  Kelly_stabilized[SF==sf_now, fit_nls_bergen := exp(predict(fit2_stab_s))]
+  if (start_params_n > 1) {
+    Kelly_stabilized[SF==sf_now, fit_nls_burr_rigorous := exp(predict(fit1_stab))]
+    Kelly_stabilized[SF==sf_now, fit_nls_bergen_rigorous := exp(predict(fit2_stab))]
+  } else {
+    Kelly_stabilized[SF==sf_now, fit_nls_burr_rigorous := NaN]
+    Kelly_stabilized[SF==sf_now, fit_nls_bergen_rigorous := NaN]
+  }
+}
+# shutdown cluster
+if (!is.null(par_cluster)) {
+  stopCluster(par_cluster)
+}
+# goodness of fit: Burr & Morrone
+p_burrmorrone <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
+  #geom_point(size = 2.0) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr_rigorous, color = SF, group = SF ), 
+            size = 1.5, alpha = 1) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
+  annotation_logticks() + 
+  theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
+  coord_cartesian(ylim = c(0.01, 200), expand = FALSE) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(x = "Temporal frequency [Hz]", y = "Contrast sensitivity", color = "Spatial frequency [cpd]", 
+       title = "IRF model (Burr & Morrone)")
+p_burrmorrone
+# goodness of fit: Bergen & Wilson
+p_bergenwilson <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
+  #geom_point(size = 2.0) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen_rigorous, color = SF, group = SF ), 
+            size = 1.5, alpha = 1) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
+  annotation_logticks() + 
+  theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
+  coord_cartesian(ylim = c(0.01, 200), expand = FALSE) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(x = "Temporal frequency [Hz]", y = "Contrast sensitivity", color = "Spatial frequency [cpd]", 
+       title = "IRF model (Bergen & Wilson)")
+p_bergenwilson
+# ground truth
+p_groundtruth <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
+  #geom_point(size = 2.0) + 
+  geom_line(size = 1.5, alpha = 1) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
+  annotation_logticks() + 
+  theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
+  coord_cartesian(ylim = c(0.01, 200), expand = FALSE) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(x = "Temporal frequency [Hz]", y = "Contrast sensitivity", color = "Spatial frequency [cpd]", 
+       title = "Kelly's (1979) function")
+p_groundtruth
+# combine
+p_groundtruth_bergenwilson <- plot_grid(p_groundtruth, 
+                                        p_bergenwilson, 
+                                        p_burrmorrone, 
+                                        nrow = 1)
+p_groundtruth_bergenwilson
+
+## look at parameters
+Kelly_IRF_coefs[model=="Bergen & Wilson"]
+Kelly_IRF_coefs[model=="Burr & Morrone"]
+# model comparison?
+t.test(y = Kelly_IRF_coefs[model=="Bergen & Wilson" & fit_type=="rigorous", rss], 
+       x = Kelly_IRF_coefs[model=="Burr & Morrone" & fit_type=="rigorous", rss], paired = TRUE)
+```
+
+# 4. Create a continuous TRF space and save it for later
+
+Have a look at the individual IRFs for each SF, then fit a Time x SF GAM so that we can interpolate an IRF for every possible SF. 
+Then we'll save the model for later...
+
+```{r}
+## IRFs
+p_irf_burrmorrone <- ggplot(data = Kelly_IRFs, aes(x = irf_time, y = irf_burr, color = SF, group = SF )) + 
+  geom_line(size = 1.5) + theme_classic() + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(color = "SF [cpd]", x = "Time [ms]", y = "H(t)") + 
+  facet_wrap(~fit_type)
+p_irf_burrmorrone
+# Bergen & Wilson
+p_irf_bergenwilson <- ggplot(data = Kelly_IRFs, aes(x = irf_time, y = irf_bergen, color = SF, group = SF )) + 
+  geom_line(size = 1.5, alpha = 0.8) + 
+  theme_classic(base_size = 12.5) + 
+  scale_x_continuous(expand = c(0,0)) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(color = "SF [cpd]", x = "Time [ms]", y = "H(t)") + 
+  facet_wrap(~fit_type)
+p_irf_bergenwilson
+
+# IRF surface
+p_irf_surface <- ggplot(data = Kelly_IRFs, 
+                        aes(x = irf_time, y = SF, fill = irf_bergen)) + 
+  geom_raster(interpolate = TRUE) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_continuous(limits = c(0, 250), expand = c(0,0)) + 
+  scale_y_log10() + 
+  annotation_logticks(sides = "l") + 
+  scale_fill_gradient2() + 
+  theme_minimal(base_size = 12.5) + theme() + 
+  labs(y = "Spatial frequency [cpd]", x = "Time [ms]", fill = "H(t)") + 
+  facet_wrap(~fit_type)
+p_irf_surface
+# on the side, a few exemplary IRFs
+p_irf_examples <- ggplot(data = Kelly_IRFs[fit_type=="simple"], 
+                        aes(x = irf_time, y = irf_bergen)) + 
+  scale_x_continuous(limits = c(0, 250), expand = c(0,0)) + 
+  geom_line(size = 1.5) + 
+  theme_minimal(base_size = 12.5) + theme() + 
+  labs(x = "Time [ms]", y = "H(t)") + 
+  facet_wrap(~round(SF,2))
+p_irf_examples
+
+# approximate the IRFs with a GAM ~ time x SF
+gam_irf <- bam(data = Kelly_IRFs, subset = fit_type=="simple", 
+               formula = irf_bergen ~ 
+                 s(log(SF), k = 16, bs = "cr") + 
+                 s(irf_time, k = 40, bs = "cr") + 
+                 ti(log(SF), irf_time, k = c(16, 40), bs = c("cr", "cr") )
+)
+summary(gam_irf)
+Kelly_IRFs[fit_type=="simple", irf_bergen_gam_pred := predict(gam_irf)]
+
+# IRF surface, fitted by GAM
+p_irf_surface_gam <- ggplot(data = Kelly_IRFs[fit_type=="simple"], 
+                        aes(x = irf_time, y = SF, fill = irf_bergen_gam_pred)) + 
+  geom_raster(interpolate = TRUE) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_continuous(limits = c(0, 250), expand = c(0,0)) + 
+  scale_y_log10() +  # limits = c(0.01, 10)
+  annotation_logticks(sides = "l") + 
+  scale_fill_gradient2() + 
+  theme_minimal(base_size = 12.5) + theme() + 
+  labs(y = "Spatial frequency [cpd]", x = "Time [ms]", fill = "H(t)")
+p_irf_surface_gam
+
+# save the modelsa
+save(gam_irf, file = "gam_irf.rda", compress = "xz")
+```
+
+# 5. Fourier analysis of TRFs
+
+Look at the Fourier domain of those IRFs. The amplitude spectrum should look very much like Kelly's sensitivity curve!
+
+```{r}
+# pick a single SF
+unique_SFs <- unique(Kelly_IRFs$SF)
+IRF_ffts <- NULL
+for (unique_SF in unique_SFs) {
+  # run fft
+  single_IRF <- Kelly_IRFs[fit_type=="simple" & SF==unique_SF]
+  # zero padding?
+  n = 2^nextpow2(nrow(single_IRF)*10);
+  zeros = rep(0, times = n - nrow(single_IRF))
+  # from https://de.mathworks.com/help/matlab/ref/fft.html
+  Y <- fft(c(single_IRF$irf_bergen_gam_pred, zeros))
+  n <- length(Y) # length of signal 
+  Fs <- unique(round(1/diff(single_IRF$irf_time/1000))) # in Hz, artifical sampling rate
+  # amplitude
+  P2 = abs(Y/n) 
+  P1 = P2[1:(n/2+1)]
+  P1[2:(length(P1)-1)] = 2*P1[2:(length(P1)-1)]
+  # phase
+  pha2 = Imag(Y) 
+  pha1 = pha2[1:(n/2+1)]
+  pha1[2:(length(pha1)-1)] = 2*pha1[2:(length(pha1)-1)]
+  # save:
+  single_IRF_fft <- data.table(SF = unique_SF, 
+                               f = Fs*(0:(n/2))/n, 
+                               Y = P1, 
+                               pha = pha1)
+  IRF_ffts <- rbind(IRF_ffts, single_IRF_fft)
+}
+# plot the fourier domain
+p_fft_amp <- ggplot(IRF_ffts, aes(x = f, y = Y, color = SF, group = SF)) + 
+  coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(1e-7, 1e-3/2)) + 
+  geom_line(size = 1.5, alpha = 1) + 
+  scale_x_log10() + 
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x), 
+                labels = trans_format("log10", math_format(10^.x))) + 
+  annotation_logticks() + 
+  theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(x = "Temporal frequency [Hz]", y = "Amplitude", color = "Spatial frequency [cpd]", 
+       title = "IRF model Fourier domain - amplitude")
+# plot the phase
+p_fft_phase <- ggplot(IRF_ffts, aes(x = f, y = pha, color = SF, group = SF)) + 
+  coord_cartesian(expand = FALSE, xlim = c(0.5, 50)) + 
+  geom_line(size = 1.5, alpha = 1) + 
+  scale_x_log10() + 
+  annotation_logticks(sides = "b") + 
+  theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(x = "Temporal frequency [Hz]", y = "Phase", color = "Spatial frequency [cpd]", 
+       title = "IRF model Fourier domain - phase")
+
+# combine
+p_fft_combined <- plot_grid(p_groundtruth, 
+                            p_fft_amp, p_fft_phase, nrow = 1)
+p_fft_combined
+```
+
+The Fourier spectrum seems to match - how about some more explicit model predictions?
+
+```{r}
+# predict Kelly's SF-TF surface using the model
+gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
+                                    SF_now, # single value, for now
+                                    irf_gam, # is the SF x time GAM that encodes the IRFs
+                                    irf_dur=500, # 
+                                    t_res, 
+                                    pres_dur = 4 * 8 * 28 * (1000/120), 
+                                    ramp_sd = 4 * 28 * (1000/120), # those are constants
+                                    beta=1.5, G=1 # slope of prob summation, negative-lobe asymmetry
+) {
+  require(data.table)
+  require(mgcv)
+  require(pracma)
+  # create temporal reference
+  stim_time <- seq(0, pres_dur, by = t_res) 
+  # iterate over tfreqs
+  sums_tfreqs <- vector(mode = "numeric", length = length(tfreqs))
+  for (tfreq_i in (1:length(tfreqs))) {
+    # create flicker stimulus and gaussian temporal ramp
+    x <- create_flicker_stim(dur = pres_dur, t_res = t_res, 
+                             tfreq = tfreqs[tfreq_i]) 
+    if (!is.na(ramp_sd)) {
+      gaussian <- dnorm(x = stim_time, mean = pres_dur/2, sd = ramp_sd) # gaussian ramp
+      gaussian <- gaussian / max(gaussian)
+    } else {
+      gaussian <- rep(1, length.out = length(stim_time))
+    }
+    stim_tfreq <- x * gaussian # combined
+    # extract IRF from GAM
+    gam_df <- data.table(irf_time = seq(0, irf_dur, by = t_res), 
+                         SF = SF_now)
+    gam_df[ , irf_predict := predict.bam(object = irf_gam, newdata = gam_df)]
+    trf_time <- gam_df$irf_time
+    trf <- gam_df$irf_predict
+    # convolution
+    resp_tfreq <- zapsmall(convolve(stim_tfreq, rev(trf), type = "open"))[1:length(stim_tfreq)]
+    # add the systematic asymmetry? (as in Kelly & Savoie, 1978 or Bergen & Wilson, 1984)
+    if (G != 1) {
+      resp_tfreq[resp_tfreq<0] <- resp_tfreq[resp_tfreq<0] * G
+    }
+    # probability summation
+    sums_tfreqs[tfreq_i] <- trapz(x = stim_time, y = abs(resp_tfreq)^beta)^(1/beta)
+  }
+  return(sums_tfreqs)
+}
+
+Kelly_stabilized[ , fit_ultimate := NaN]
+for (r in 1:nrow(Kelly_stabilized)) {
+  Kelly_stabilized$fit_ultimate[r] <- gam_and_flicker_to_sens(tfreqs = Kelly_stabilized$TF[r], 
+                                                              SF = Kelly_stabilized$SF[r], 
+                                                              irf_gam = gam_irf, 
+                                                              t_res = t_res)
+}
+
+# have a look:
+p_kelly_surface_predicted <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = log10(fit_ultimate) )) + 
+  #geom_raster(interpolate = TRUE) + 
+  geom_contour() + geom_contour_filled(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  #scale_fill_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + theme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+
+p_kelly_surface_original_and_predicted <- 
+  plot_grid(p_kelly_surface + theme(legend.position = "none") + ggtitle("Kelly's original function"), 
+            p_kelly_surface_predicted + theme(legend.position = "none") + ggtitle("IRF model prediction"), 
+            nrow = 1)
+p_kelly_surface_original_and_predicted
+```
+
+... this is not exactly like Kelly's surface, but good enough. The TRFs are able to explain a very good deal of the data!
+
+Finally, save this workspace:
+
+```{r}
+save.image(file = "estimate_TRFs_for_SFs.RData", compress = "xz")
+```
