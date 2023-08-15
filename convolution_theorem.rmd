@@ -1,0 +1,311 @@
+---
+title: "Convolution theorem"
+author: "Richard Schweitzer"
+date: "2023-08-13"
+output: github_document
+---
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(scales)
+library(cowplot)
+library(torch)
+library(smoothie)
+library(assertthat)
+library(rbenchmark)
+source("plot_heatmap.R")
+source("get_gabor_field.R")
+```
+
+
+```{r}
+fft_conv_with_torch_2d <- function (x, K, 
+                                    use_torch=FALSE, no_CUDA=FALSE, use_half_on_GPU=FALSE, 
+                                    verbose=FALSE) {
+  # based on kernel2dsmooth from package 'smoothie'
+  if (use_torch) {
+    require(torch)
+    if (cuda_is_available()) {
+      if (verbose) {
+        print(paste("CUDA is available - Version:", cuda_runtime_version()))
+      }
+      if (no_CUDA) {
+        use_device <- torch_device('cpu')
+      } else {
+        use_device <- torch_device('cuda') # 'cuda'
+      }
+      # ... and what should be the preferred data type? (there are torch_half, torch_float, torch_double)
+      if (use_half_on_GPU) {
+        preferred_dtype <- torch_float16() # or half as mixed/half computing is optimized?
+      } else {
+        preferred_dtype <- torch_float32()
+      }
+    } else {
+      use_device <- torch_device('cpu')
+      preferred_dtype <- torch_float32()
+    }
+  }
+  # get dimensions for padding right
+  xdim <- dim(x)
+  Nxy <- prod(xdim)
+  kdim <- dim(K)
+  bigdim <- xdim + kdim - 1
+  if (bigdim[1] <= 1024) {
+    bigdim[1] <- 2^ceiling(log2(bigdim[1]))
+  } else {
+    bigdim[1] <- ceiling(bigdim[1]/512) * 512
+  }
+  if (bigdim[2] <= 1024) {
+    bigdim[2] <- 2^ceiling(log2(bigdim[2]))
+  } else {
+    bigdim[2] <- ceiling(bigdim[2]/512) * 512
+  }
+  Kbig <- matrix(0, bigdim[1], bigdim[2])
+  kcen <- floor((kdim + 1)/2)
+  Kbig[1:(kdim[1] - kcen[1] + 1), 
+       1:(kdim[2] - kcen[2] + 1)] <- K[kcen[1]:kdim[1], 
+                                       kcen[2]:kdim[2]]
+  if (kdim[1] > 1) {
+    Kbig[(bigdim[1] - kcen[1] + 2):bigdim[1], 
+         1:(kdim[2] - kcen[2] + 1)] <- K[1:(kcen[1] - 1), 
+                                         kcen[2]:kdim[2]]
+  }
+  if (kdim[2] > 1) {
+    Kbig[1:(kdim[1] - kcen[1] + 1), 
+         (bigdim[2] - kcen[2] + 2):bigdim[2]] <- K[kcen[1]:kdim[1], 
+                                                   1:(kcen[2] - 1)]
+  }
+  if (all(kdim > 1)) {
+    Kbig[(bigdim[1] - kcen[1] + 2):bigdim[1], 
+         (bigdim[2] - kcen[2] + 2):bigdim[2]] <- K[1:(kcen[1] - 1), 
+                                                   1:(kcen[2] - 1)]
+  }
+  if (verbose) { cat("Finding the FFT of the kernel matrix.\n") }
+  if (use_torch) {
+    Kbig_torch <- torch_tensor(data = Kbig, device = use_device, dtype = preferred_dtype)
+    W <- torch_fft_fft(torch_fft_fft(self = Kbig_torch, 
+                                     dim = 1), 
+                       dim = 2) #/ prod(bigdim) # this division is not needed
+  } else {
+    W <- fft(Kbig)/prod(bigdim)
+  }
+  if (verbose) { cat("FFT of kernel matrix found.\n") }
+  # prepare the target matrix
+  out <- matrix(0, bigdim[1], bigdim[2])
+  out[1:xdim[1], 1:xdim[2]] <- x
+  out[is.na(out)] <- 0
+  if (verbose) { cat("Performing the convolution.\n") }
+  if (use_torch) {
+    out_torch <- torch_tensor(data = out, device = use_device, dtype = preferred_dtype)
+    out_fft <- torch_fft_fft(torch_fft_fft(self = out_torch, 
+                                           dim = 1), 
+                             dim = 2)
+    out_fft <- torch_multiply(out_fft, W)
+    out <- torch_fft_ifft(torch_fft_ifft(self = out_fft, 
+                                         dim = 1), 
+                          dim = 2)[1:xdim[1], 1:xdim[2]]
+    out <- out$real
+  } else {
+    out <- Re(fft(fft(out) * W, inverse = TRUE))[1:xdim[1], 1:xdim[2]]
+  }
+  if (verbose) { cat("The convolution has been carried out.\n")  }
+  return((out))
+}
+```
+
+Test the function:
+```{r}
+test_image <- matrix(rnorm(100*100), nrow = 100)
+plot_heatmap(test_image)
+test_kernel <- get_gabor_field(rf_freq_dva = 1, rf_width_dva = 1, rf_ori = 0, rf_amp = 1, 
+                               scr.ppd = 20)[[2]]
+plot_heatmap(test_kernel)
+
+# 1st test with original smoothie
+res_smoothie <- kernel2dsmooth(x = test_image, K = test_kernel)
+p1_2d <- plot_heatmap(res_smoothie, do_print = FALSE)
+# 2nd test with modified smoothie function
+res_smoothie_mod <- fft_conv_with_torch_2d(x = test_image, K = test_kernel, use_torch = FALSE)
+p2_2d <- plot_heatmap(res_smoothie_mod, do_print = FALSE)
+# 3rd critical test with torch version of the smoothie algorithm - should look the same
+res_smoothie_torch <- fft_conv_with_torch_2d(x = test_image, K = test_kernel, use_torch = TRUE)
+p3_2d <- plot_heatmap(as_array(res_smoothie_torch$cpu()), do_print = FALSE)
+# compare
+plot_grid(p1_2d, p2_2d, p3_2d, nrow = 1, align = "hv")
+```
+
+Now the 3D function:
+```{r}
+source("fft_conv_with_torch_3d.R")
+fft_conv_with_torch_3d
+```
+
+Now test this 3D version...
+```{r}
+test_mat <- (array(data = rnorm(50*100*100), dim = c(1, 50, 100, 100)))
+dim(test_mat)
+plot_heatmap(test_mat[1, 1, , ])
+
+# 1st test with original smoothie
+res_smoothie_3d <- kernel2dsmooth(x = test_mat[1, 1, , ], K = test_kernel)
+p1_3d <- plot_heatmap(res_smoothie_3d, do_print = FALSE)
+# 2nd test with modified smoothie function
+res_smoothie_mod_3d <- fft_conv_with_torch_3d(x = test_mat, K = test_kernel, use_torch = FALSE)
+dim(res_smoothie_mod_3d)
+p2_3d <- plot_heatmap(res_smoothie_mod_3d[1, , ], do_print = FALSE)
+p2_3d_2 <- plot_heatmap(res_smoothie_mod_3d[25, , ], do_print = FALSE)
+# 3rd critical test with torch version of the smoothie algorithm - should look the same
+res_smoothie_torch_3d <- fft_conv_with_torch_3d(x = test_mat, K = test_kernel, use_torch = TRUE)
+p3_3d <- plot_heatmap(as_array(res_smoothie_torch_3d[1, 1, , ]$cpu()), do_print = FALSE)
+p3_3d_2 <- plot_heatmap(as_array(res_smoothie_torch_3d[1, 25, , ]$cpu()), do_print = FALSE)
+# 4th test - with half precision: COMPLEX HALF DOES NOT WORK YET
+res_smoothie_torch_3d_half <- fft_conv_with_torch_3d(x = test_mat, K = test_kernel, use_torch = TRUE, 
+                                                     use_half_on_GPU = TRUE)
+# compare
+plot_grid(p1_3d + ggtitle("fft conv (original smoothie)"), 
+          p2_3d + ggtitle("fft conv (modified smoothie)"), 
+          p3_3d + ggtitle("fft conv (torch)"), 
+          nrow = 2, align = "hv")
+plot_grid(p2_3d_2 + ggtitle("fft conv (modified smoothie)"), 
+          p3_3d_2 + ggtitle("fft conv (torch)"), 
+          nrow = 1, align = "hv")
+```
+
+Compare to straightforward convolution...
+```{r}
+source("standard_conv_with_torch_3d.R")
+standard_conv_with_torch_3d
+```
+
+Test this function, too.
+```{r}
+# standard
+res_conv2d_1 <- standard_conv_with_torch_3d(x = test_mat, K = test_kernel, no_CUDA = FALSE)
+p4_3d <- plot_heatmap(as_array(res_conv2d_1[1, 1, , ]$cpu()), do_print = FALSE)
+p4_3d_2 <- plot_heatmap(as_array(res_conv2d_1[1, 25, , ]$cpu()), do_print = FALSE)
+# half precision
+res_conv2d_2 <- standard_conv_with_torch_3d(x = test_mat, K = test_kernel, no_CUDA = FALSE, 
+                                            use_half_on_GPU = TRUE)
+p5_3d <- plot_heatmap(as_array(res_conv2d_2[1, 1, , ]$to(torch_float32())$cpu()), do_print = FALSE)
+p5_3d_2 <- plot_heatmap(as_array(res_conv2d_2[1, 25, , ]$to(torch_float32())$cpu()), do_print = FALSE)
+# assert fft-based and standard convolution give same results
+plot_grid(p2_3d + ggtitle("fft conv (smoothie)"), 
+          p3_3d + ggtitle("fft conv (torch)"), 
+          p4_3d + ggtitle("standard conv (full prec)"), 
+          p5_3d + ggtitle("standard conv (half prec)"), 
+          nrow = 2, align = "hv")
+plot_grid(p2_3d_2 + ggtitle("fft conv (smoothie)"), 
+          p3_3d_2 + ggtitle("fft conv (torch)"), 
+          p4_3d_2 + ggtitle("standard conv (full prec)"), 
+          p5_3d_2 + ggtitle("standard conv (half prec)"), 
+          nrow = 2, align = "hv")
+```
+
+Test timing...
+```{r}
+kernel_sizes <- c(11, 23, 35, 51, 81, 111, 141, 171, 211, 261) # sizes of kernels
+mat_sizes <- c(50, 100, 150, 200) # X*X size of spatial domain
+t_dim <- 15 # n slices on the temporal domain
+n_rep <- 50 # number of replications
+# go run:
+benchmark_res <- NULL
+for (mat_size in mat_sizes) {
+  for (kernel_size in kernel_sizes) {
+    # create matrix and kernel
+    K_now <- kernel2dmeitsjer(kernel.type="gauss", 
+                              nx=kernel_size, ny=kernel_size, sigma=kernel_size/3)
+    mat_now <- array(rnorm(n = mat_size*mat_size*t_dim), dim = c(1, t_dim, mat_size, mat_size))
+    # run benchmark
+    b_now <- benchmark(
+      # GPU
+      stand_conv_gpu = {
+        res_conv2d_1 <- standard_conv_with_torch_3d(x = mat_now, K = K_now, 
+                                                    no_CUDA = FALSE)
+      }, 
+      fft_conv_gpu = {
+        res_convfft_1 <- fft_conv_with_torch_3d(x = mat_now, K = K_now, 
+                                                use_torch = TRUE, no_CUDA = FALSE)
+
+      },
+      # CPU
+      stand_conv_cpu = {
+        res_conv2d_2 <- standard_conv_with_torch_3d(x = mat_now, K = K_now, 
+                                                    no_CUDA = TRUE)
+      }, 
+      fft_conv_cpu = {
+        res_convfft_2 <- fft_conv_with_torch_3d(x = mat_now, K = K_now, 
+                                                use_torch = TRUE, no_CUDA = TRUE)
+
+      },
+      # GPU with half precision
+      stand_conv_gpuhalf = {
+        res_conv2d_3 <- standard_conv_with_torch_3d(x = mat_now, K = K_now, 
+                                                    no_CUDA = FALSE, 
+                                                    use_half_on_GPU = TRUE)
+      }, 
+      # fft_conv_gpuhalf = {
+      #   res_convfft_3 <- fft_conv_with_torch_3d(x = mat_now, K = K_now, 
+      #                                           use_torch = TRUE, no_CUDA = FALSE, 
+      #                                           use_half_on_GPU = TRUE)
+      # },
+      replications = n_rep)
+    # feedback
+    print(paste(mat_size, kernel_size))
+    print(b_now)
+    # save
+    benchmark_res <- rbind(benchmark_res, 
+                           data.table(mat_size = mat_size, kernel_size = kernel_size, 
+                                      fft_conv_gpu = b_now$elapsed[b_now$test=="fft_conv_gpu"] / n_rep, 
+                                      stand_conv_gpu = b_now$elapsed[b_now$test=="stand_conv_gpu"] / n_rep,
+                                      fft_conv_cpu = b_now$elapsed[b_now$test=="fft_conv_cpu"] / n_rep, 
+                                      stand_conv_cpu = b_now$elapsed[b_now$test=="stand_conv_cpu"] / n_rep,
+                                      #fft_conv_gpuhalf = b_now$elapsed[b_now$test=="fft_conv_gpuhalf"] / n_rep, 
+                                      stand_conv_gpuhalf = b_now$elapsed[b_now$test=="stand_conv_gpuhalf"] / n_rep
+                                      )
+    )
+  }
+}
+
+# make pretty for plot
+benchmark_res_long <- melt.data.table(data = benchmark_res, 
+                                      id.vars = c("mat_size", "kernel_size"), 
+                                      measure.vars = c("fft_conv_gpu", "fft_conv_cpu", #"fft_conv_gpuhalf",
+                                                       "stand_conv_gpu", "stand_conv_cpu", "stand_conv_gpuhalf"), 
+                                      variable.name = "condition", value.name = "time_taken")
+benchmark_res_long[ , gpu_cpu := sapply(X = condition, 
+                                        FUN = function(x) { strsplit(as.character(x), split = "_")[[1]][[3]] }  )]
+benchmark_res_long[ , conv_method := sapply(X = condition, 
+                                        FUN = function(x) { strsplit(as.character(x), split = "_")[[1]][[1]] }  )]
+benchmark_res_long[ , n_operations := mat_size^2 * kernel_size^2]
+benchmark_res_long[ , mat_size_f := ordered(mat_size)]
+levels(benchmark_res_long$mat_size_f) <- paste0("matrix size = ", levels(benchmark_res_long$mat_size_f))
+
+# plot 1: conditions
+p_benchmark_res <- ggplot(data = benchmark_res_long, 
+                          aes(x = kernel_size, y = time_taken, color = conv_method)) + 
+  geom_line( size = 1.5) + geom_point(size = 2) + 
+  facet_grid(mat_size_f~gpu_cpu) + 
+  theme_minimal(base_size = 12.5) + 
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x), 
+                labels = trans_format("log10", math_format(10^.x))) + 
+  annotation_logticks(sides = "l") + 
+  labs(x = "Size of filter kernel", y = "Time taken [s]", color = "Convolution\nmethod") + 
+  theme(legend.position = "bottom")
+p_benchmark_res
+
+# plot 2: n operations
+p_benchmark_res_2 <- ggplot(data = benchmark_res_long, 
+                          aes(x = n_operations, y = time_taken, color = conv_method)) + 
+  geom_line( size = 1.5) + geom_point(size = 2) + 
+  facet_grid(mat_size_f~gpu_cpu) + 
+  theme_minimal(base_size = 12.5) + 
+  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), 
+                labels = trans_format("log10", math_format(10^.x))) + 
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x), 
+                labels = trans_format("log10", math_format(10^.x))) + 
+  annotation_logticks(sides = "bl") + 
+  labs(x = "Number of operations", y = "Time taken [s]", color = "Convolution\nmethod") + 
+  theme(legend.position = "bottom")
+p_benchmark_res_2
+```
