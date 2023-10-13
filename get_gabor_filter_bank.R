@@ -1,4 +1,5 @@
 get_gabor_filter_bank <- function(all_SF, all_Ori, scr_ppd, ppd_scaler = 1, 
+                                  use_log_gabor_heiko = FALSE, # use Heiko Schuett's version?
                                   do_on_GPU=FALSE, # transfer Gabor filters to GPU memory?
                                   rf_width_override = NaN,
                                   make_gaussian_aperture = FALSE, 
@@ -17,18 +18,24 @@ get_gabor_filter_bank <- function(all_SF, all_Ori, scr_ppd, ppd_scaler = 1,
   for (now_SF_i in 1:length(all_SF) ) {
     now_SF <- all_SF[now_SF_i]
     # have we specified the RF size?
-    if (is.na(rf_width_override) || length(rf_width_override)==1) {
+    if (any(is.na(rf_width_override)) || length(rf_width_override)==1) {
       rf_width_override_now <- rf_width_override
     } else if (length(rf_width_override)==length(all_SF)) {
       rf_width_override_now <- rf_width_override[now_SF_i]
     }
     for (now_Ori in all_Ori) {
       result_i <- result_i + 1
-      this_gabor <- get_gabor_field(rf_freq_dva = now_SF, rf_ori = now_Ori, 
-                                    create_aperture = TRUE, 
-                                    gaussian_aperture = make_gaussian_aperture,
-                                    rf_width_dva = rf_width_override_now, 
-                                    scr.ppd = scr_ppd, ppd_scaler = ppd_scaler)
+      if (use_log_gabor_heiko) {
+        this_gabor <- get_gabor_field_heiko(rf_freq_dva = now_SF, rf_ori = now_Ori, 
+                                            im_size_dva = rf_width_override_now, 
+                                            scr.ppd = scr_ppd, ppd_scaler = ppd_scaler)
+      } else {
+        this_gabor <- get_gabor_field(rf_freq_dva = now_SF, rf_ori = now_Ori, 
+                                      create_aperture = TRUE, 
+                                      gaussian_aperture = make_gaussian_aperture,
+                                      rf_width_dva = rf_width_override_now, 
+                                      scr.ppd = scr_ppd, ppd_scaler = ppd_scaler)
+      }
       # do we want to perform this operation on the GPU? If so, transfer to GPU using torch
       if (do_on_GPU) {
         this_gabor[[1]] <- torch_tensor(this_gabor[[1]], device = devi)
