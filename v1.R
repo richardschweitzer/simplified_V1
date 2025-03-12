@@ -2,13 +2,17 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
                stim_mat, # the noise patch as a matrix
                gabor_list, # a list of gabor filters created by 'get_gabor_filter_bank'
                normalize_RFs = TRUE, # TRUE: to sum-divide the Gabor filter kernels
+               override_spatial_pad_size = NaN, # specify the spatial padding
+               override_spatial_use_fft = FALSE, # TRUE: never use fft-based spatial convolution
                irf_df = NULL, # a data.frame of IRFs resolved in SF x time created by 'get_IRF_df'
+               override_temporal_pad_size = NaN, # specify the temporal padding in ms
                normalize_IRFs = FALSE, # TRUE: to sum-divide the IRFs
                signal_x, signal_y, signal_t, # the signal in pixels
                norm_sigma = NULL, # provide the normalization constant, if not it will be estimated based on the max
                use_normalization_pool = TRUE, # TRUE: use a normalization pool in space, SF, and Orientation
                normalize_override = FALSE, # TRUE: to simply not do normalization
                output_full_sequences = FALSE, # TRUE: returns complete sequences. WARNING: this is memory-intense
+               output_full_sequences_spatial_resample_to = NULL, # NULL: no downsampling, or c(16, 10) to resample to that grid
                output_full_sequences_use_RleArray = FALSE, # TRUE: use RleArray (from package DelayedArray) if output_full_sequences=TRUE
                signal_x_range = NULL, signal_y_range = NULL, signal_t_range = NULL, # the min and max of temporal scale
                no_CUDA = FALSE, # set to TRUE if you want to use CPU instead of GPU (but torch)
@@ -30,6 +34,11 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     # then: BiocManager::install("DelayedArray")
     require(DelayedArray)
   }
+  if (output_full_sequences & !is.null(output_full_sequences_spatial_resample_to)) {
+    assert_that(length(output_full_sequences_spatial_resample_to)==2 & 
+                  all(output_full_sequences_spatial_resample_to>0), 
+                msg = "output_full_sequences_spatial_resample_to needs to have two positive values!")
+  }
   ## 0.1 quick checks
   # do the SFs of the supplied IRF and Gabor objects match?
   gabor_SFs <- sort(unique(as.numeric(unlist(lapply(X = gabor_list, FUN = function(x) { x[[3]]['rf_freq_dva'] })))))
@@ -41,6 +50,9 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
   assert_that(exists("standard_conv_with_torch_3d"))
   assert_that(exists("fft_conv_with_torch_3d"))
   assert_that(exists("plot_heatmap"))
+  if (!is.null(output_full_sequences_spatial_resample_to)) {
+    assert_that(exists("resample_yxt"))
+  }
   if (is.null(irf_df)) { # no IRFs provided, thus use Kelly-filter approach
     assert_that(exists("kelly_vel"))
     assert_that(exists("temporal_conv_kelly_fft"))
@@ -76,10 +88,16 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     
     # 1.1 get the dimensions for the cells of the matrix
     spatial_pad_size <- round(max(dim(stim_mat))) # times two ???
+    if (!is.na(override_spatial_pad_size) & !is.null(override_spatial_pad_size)) {
+      spatial_pad_size <- override_spatial_pad_size
+    }
     if (!is.null(irf_df)) { # IRFs provided
       temporal_pad_size <- round(1*(max(irf_Time)-min(irf_Time)))
     } else {
       temporal_pad_size <- 300
+    }
+    if (!is.na(override_temporal_pad_size) & !is.null(override_temporal_pad_size)) {
+      temporal_pad_size <- override_temporal_pad_size
     }
     # X
     if (!is.null(signal_x_range)) {
@@ -114,27 +132,58 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     if (debug_mode) {
       p_stim_sequence_list <- vector(mode = "list", length = n_samples)
     }
+    if (debug_mode) {
+      print("Start preparing stimulus locations...")
+    }
+    do_in_place_edit <- TRUE # IMPORTANT: at some point this matrix operation was not in-place anymore! TRUE uses the torch workaround
+    if (do_in_place_edit) {
+      mat_over_t <- torch_tensor(mat_over_t)
+      stim_mat_vec <- torch_tensor(as.vector(stim_mat))
+    }
     for (sample_i in (1:n_samples)) {
       # in case we have an NA, we'll leave it out
       if (!is.na(signal_x[sample_i]) && !is.na(signal_y[sample_i]) && !is.na(signal_t[sample_i])) {
         put_sample_x_here <- which.min(abs(mat_size_x - signal_x[sample_i]))
         put_sample_y_here <- which.min(abs(mat_size_y - signal_y[sample_i]))
         put_sample_t_here <- which.min(abs(mat_size_t - signal_t[sample_i]))
-        mat_over_t[seq(put_sample_y_here-round(nrow(stim_mat)/2), 
-                       put_sample_y_here-round(nrow(stim_mat)/2)+nrow(stim_mat)-1, 
-                       by = 1), 
-                   seq(put_sample_x_here-round(ncol(stim_mat)/2), 
-                       put_sample_x_here-round(ncol(stim_mat)/2)+ncol(stim_mat)-1, 
-                       by = 1), 
-                   put_sample_t_here] <- stim_mat
-        #print(address(mat_over_t)) # this operation works in place
+        if (!do_in_place_edit) {
+          mat_over_t[seq(put_sample_y_here-round(nrow(stim_mat)/2), 
+                         put_sample_y_here-round(nrow(stim_mat)/2)+nrow(stim_mat)-1, 
+                         by = 1), 
+                     seq(put_sample_x_here-round(ncol(stim_mat)/2), 
+                         put_sample_x_here-round(ncol(stim_mat)/2)+ncol(stim_mat)-1, 
+                         by = 1), 
+                     put_sample_t_here] <- stim_mat # this operation worked in place - now it does not!
+        } else {
+          ex = expand.grid(list(y = seq(put_sample_y_here-round(nrow(stim_mat)/2), 
+                                    put_sample_y_here-round(nrow(stim_mat)/2)+nrow(stim_mat)-1, 
+                                    by = 1), 
+                                x = seq(put_sample_x_here-round(ncol(stim_mat)/2), 
+                                    put_sample_x_here-round(ncol(stim_mat)/2)+ncol(stim_mat)-1, 
+                                    by = 1), 
+                                t = put_sample_t_here))
+          torch_index_put_(mat_over_t, 
+                           list(torch_tensor(ex$y, dtype = torch_int()), 
+                                torch_tensor(ex$x, dtype = torch_int()), 
+                                torch_tensor(ex$t, dtype = torch_int())), 
+                           stim_mat_vec)
+        }
+        if (debug_mode) { print(address(mat_over_t)) }
+        # plot position
         if (debug_mode) {
-          p_stim_now <- plot_heatmap(mat_over_t[ , , put_sample_t_here], do_print = FALSE)
+          if (!do_in_place_edit) {
+            p_stim_now <- plot_heatmap((mat_over_t[ , , put_sample_t_here]), do_print = FALSE)
+          } else {
+            p_stim_now <- plot_heatmap(as_array(mat_over_t[ , , put_sample_t_here]), do_print = FALSE)
+          }
           p_stim_sequence_list[[sample_i]] <- p_stim_now + 
             #ggtitle(paste("t =", signal_t[sample_i])) + 
             theme(legend.position = "none")
         }
       }
+    }
+    if (debug_mode) {
+      print("done.")
     }
     # plot the sequence?
     if (debug_mode) {
@@ -171,6 +220,8 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
       use_device <- torch_device('cpu')
     } else {
       use_device <- torch_device('cuda') # 'cuda'
+      # perform an empty-cache operation just in case
+      cuda_empty_cache()
     }
   } else {
     use_device <- torch_device('cpu')
@@ -219,7 +270,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
       IRF_now_time <- seq(0, temporal_pad_size, by = temporal_resolution)
     }
     # get Iris Groen's low-pass filter for the delayed-normalization model
-    prm.tau2 <- 0.75 # see Figure 11 from "Temporal Dynamics of Neural Responses in Human Visual Cortex"
+    prm.tau2 <- 0.75 # see Figure 10 from "Temporal Dynamics of Neural Responses in Human Visual Cortex"
     IRF_lp = exp(-(IRF_now_time/1000)/prm.tau2)
     if (normalize_IRFs) {
       IRF_lp = IRF_lp / sum(abs(IRF_lp)) 
@@ -238,13 +289,16 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     # compute number of operations. If there are more than 10^8.5 in the spatial domain, use FFT-based
     number_of_spatial_operations <- prod(dim(spat_kernel_1)) * 
       mat_over_t_gpu$size(3) * mat_over_t_gpu$size(4)
-    if ( (cuda_is_available() && number_of_spatial_operations > 10^8.5 #10^9 
+    if ( (cuda_is_available() && number_of_spatial_operations > 10^9 
           ) ||
          ((!cuda_is_available() || no_CUDA) && number_of_spatial_operations > 10^7
           )
     ) {
       use_fft_based_2dconv <- TRUE
     } else {
+      use_fft_based_2dconv <- FALSE
+    }
+    if (override_spatial_use_fft) {
       use_fft_based_2dconv <- FALSE
     }
     ## 2) run the spatial convolution
@@ -321,7 +375,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
       }
     }
     ## 4) prepare and run the temporal convolution
-    tic(msg = "Convolutions through time")
+    tic(msg = "Temporal conv and low-pass")
     spatial_response_1 <- spatial_response_1$permute(c(1, 3, 4, 2))$squeeze() # new dim: y, x, t, as initially
     spatial_response_2 <- spatial_response_2$permute(c(1, 3, 4, 2))$squeeze()
     if (debug_mode) {
@@ -514,7 +568,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     p_max_squared_df
   }
   # now determine the sigma for normalization: We'll scale it according to the maximum value in the set
-  prm.sigma = 0.07 # again, see Figure 11 from "Temporal Dynamics of Neural Responses in Human Visual Cortex"
+  prm.sigma = 0.07 # again, see Figure 10 from "Temporal Dynamics of Neural Responses in Human Visual Cortex"
   prm.n = 1.4
   which_max_squared_resp <- which.max(max_squared_resp)
   if (is.null(norm_sigma)) { # no norm_sigma provided, so go estimate
@@ -529,9 +583,22 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
                                  dim = c(length(gabor_list), dim(mat_over_t)[1], dim(mat_over_t)[2]))
   # normalized final output huge matrix [filter, y, x, t]
   if (output_full_sequences) {
-    required_dims <- c(length(gabor_list), dim(mat_over_t)[1], dim(mat_over_t)[2], dim(mat_over_t)[3])
-    required_dimnames <- list(paste(SFs_of_filters, Oris_of_filters, sep = "_"),
-                              mat_size_y, mat_size_x, mat_size_t)
+    # what are the dimensions of the matrix?
+    if (!is.null(output_full_sequences_spatial_resample_to)) { # resample?
+      required_dims <- c(length(gabor_list), 
+                         output_full_sequences_spatial_resample_to[1], output_full_sequences_spatial_resample_to[2], 
+                         dim(mat_over_t)[3])
+      mat_size_y_resampled <- seq(min(mat_size_y), max(mat_size_y), length.out = output_full_sequences_spatial_resample_to[1])
+      mat_size_x_resampled <- seq(min(mat_size_x), max(mat_size_x), length.out = output_full_sequences_spatial_resample_to[2])
+      required_dimnames <- list(paste(SFs_of_filters, Oris_of_filters, sep = "_"),
+                                mat_size_y_resampled, mat_size_x_resampled, mat_size_t)
+      rm(mat_size_y_resampled, mat_size_x_resampled)
+    } else { # full size
+      required_dims <- c(length(gabor_list), dim(mat_over_t)[1], dim(mat_over_t)[2], dim(mat_over_t)[3])
+      required_dimnames <- list(paste(SFs_of_filters, Oris_of_filters, sep = "_"),
+                                mat_size_y, mat_size_x, mat_size_t)
+    }
+    # allocate the matrix here:
     if (output_full_sequences_use_RleArray) { # use Run Length Encoding, sparse in memory, extremely recommended
       if ((debug_mode || show_final_maps)) { print("Creating RleArray with dimensions:") }
       dat <- lapply(X = 1:required_dims[1], 
@@ -540,7 +607,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
                                         dim = required_dims, dimnames = required_dimnames)
       if ((debug_mode || show_final_maps)) { print(dim(final_3d_over_filters)) }
       # in case we have a delayed array, we must compress from time to time
-      compress_how_often <- 0
+      compress_how_often <- 4
       if (compress_how_often >= 2) {
         compress_when <- as.vector(round(seq(1, length(gabor_list), length.out = compress_how_often))[-1])
       } else if (compress_how_often == 1) {
@@ -549,7 +616,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
         compress_when <- NULL
       }
       rm(dat)
-    } else { # normal array: massive amount of memory needed
+    } else { # normal array: massive amount of memory needed, if not downsampled
       final_3d_over_filters <- array(data = NaN,
                                      dim = required_dims, dimnames = required_dimnames )
     }
@@ -565,10 +632,10 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
       # choose the normalization (using the lowpass-filtered data) pool here:
       if (use_normalization_pool) { # use normalization pool described in Schuett & Wichmann
         # parameters
-        use_device_normalization_pool <- use_device #'cpu' # as transferring to gpu iteratively is costly
+        use_device_normalization_pool <- 'cpu' # use_device # use 'cpu' if transferring to gpu iteratively is costly
         n_adjacents <- 2 # how many adjacent values around the current
         sigma_SF <- 1 # octaves
-        sigma_Ori <- 20 # degrees
+        sigma_Ori <- 11.5 # degrees, previously 20, but in Heiko's paper it's 0.2008 rad
         # what is the current SF and Orientation of the filter?
         norm_SF_now <- SFs_of_filters[gabor_list_i]
         unique_SFs <- sort(unique(SFs_of_filters))
@@ -591,6 +658,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
         adjacent_Oris_index[adjacent_Oris_index>length(unique_Oris)] <- 
           1:(sum(adjacent_Oris_index>length(unique_Oris)))
         adjacent_Oris <- unique_Oris[adjacent_Oris_index]
+        #print(adjacent_Oris)
         ori_dist = norm_Ori_now - adjacent_Oris # 
         ori_dist[ori_dist<=(-pi/2)] <- ori_dist[ori_dist<=(-pi/2)] + pi
         ori_dist[ori_dist>=(+pi/2)] <- ori_dist[ori_dist>=(+pi/2)] - pi
@@ -605,8 +673,9 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
         # ... and now walk through them
         normalize_by <- NULL
         for (index_now in norm_index) {
-          SF_weight_now <- SF_weights[adjacent_SFs==SFs_of_filters[index_now]]
-          Ori_weight_now <- Ori_weights[adjacent_Oris==Oris_of_filters[index_now]]
+          SF_weight_now <- unique(SF_weights[adjacent_SFs==SFs_of_filters[index_now]])
+          Ori_weight_now <- unique(Ori_weights[adjacent_Oris==Oris_of_filters[index_now]])
+          #print(paste(SF_weight_now, Ori_weight_now))
           assert_that(length(SF_weight_now)==1 & length(Ori_weight_now)==1)
           if (index_now==norm_index[1]) { # first set of data to enter normalization
             normalize_by <- lowpass_3d_over_filters[[index_now]]$to(device = use_device_normalization_pool, 
@@ -619,7 +688,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
                                                      SF_weight_now*Ori_weight_now))
           }
         }
-        normalize_by <- normalize_by$to(device = use_device,
+        normalize_by <- normalize_by$to(device = use_device, # use_device?
                                         dtype = preferred_dtype)
       } else { # NO normalization pool, simply the original delayed normalization model
         normalize_by <- lowpass_3d_over_filters[[gabor_list_i]]$to(device = use_device, 
@@ -647,6 +716,19 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
     ## Pack into final array
     final_2d_over_filters[gabor_list_i, , ] <- as_array(normalized_response_sum$cpu())
     if (output_full_sequences) {
+      # resample the normalized response?
+      if (!is.null(output_full_sequences_spatial_resample_to)) {
+        # if ((debug_mode || show_final_maps)) { print(paste("... and downsampling to", 
+        #                                                    paste(output_full_sequences_spatial_resample_to, 
+        #                                                          collapse = ","), 
+        #                                                    "...")) }
+        normalized_response <- resample_yxt(a_3d = normalized_response, 
+                                            target_size_yxt = c(output_full_sequences_spatial_resample_to[1], 
+                                                                output_full_sequences_spatial_resample_to[2], 
+                                                                dim(normalized_response)[3]), 
+                                            interpolate_method = "trilinear", preserve_corners = TRUE)
+        # if ((debug_mode || show_final_maps)) { print("Done.") } 
+      }
       # this assignment is either delayed or not:
       final_3d_over_filters[gabor_list_i, , , ] <- as_array(normalized_response$cpu())
       # if it is delayed, then we must compress from time to time:
@@ -722,6 +804,7 @@ v1 <- function(mat_over_t = NULL, # you can pass a full stimulus over time matri
   }
   if (debug_mode || show_final_maps) { 
     print("Done.")
+    print(paste("Resulting dim(final_2d_over_filters) =", paste0(dim(final_2d_over_filters), collapse = ","), "[y,x,t]" ))
   }
   # return
   return(list(final_2d_over_filters, SFs_of_filters, Oris_of_filters, final_3d_over_filters, all_final_maps))

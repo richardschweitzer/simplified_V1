@@ -18,6 +18,10 @@ library(pracma)
 library(mgcv)
 ```
 
+Shall we save the data during this run?
+```{r}
+do_save <- FALSE
+```
 
 # 1. Replicate the findings by Burr & Morrone (1993)
 
@@ -299,8 +303,8 @@ p_kelly_surface
 
 # parameters for fitting
 do_plot <- FALSE
-pres_dur_stabilized <- 4 * 8 * 28 * (1000/120)
-ramp_sd_stabilized <- 4 * 28 * (1000/120)
+pres_dur_stabilized <- 4 * 8 * 28 * (1000/120) # 4 * 8 * 28 * (1000/120)
+ramp_sd_stabilized <- pres_dur_stabilized / 8
 beta_stabilized <- 1.5
 update_start <- FALSE # use starting parameters of previous fit? 
 start_burr <- c(a0 = 1/4, a1 = 10, a2 = 3, a3 = 5)  # , G = 1.4
@@ -359,7 +363,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
                                                                  ramp_sd = ramp_sd_stabilized, 
                                                                  beta = beta_stabilized, 
                                                                  G = 1) ), 
-                       weights = 1/sens, # use weights to account for lowest sensitivities?
+                       #weights = 1/sens, # use weights to account for lowest sensitivities?
                        start = start_burr, 
                        lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0),  # , G = 1
                        trace = FALSE, control = nls.lm.control(maxiter = 200)
@@ -482,8 +486,10 @@ if (!is.null(par_cluster)) {
 # goodness of fit: Burr & Morrone
 p_burrmorrone <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
   #geom_point(size = 2.0) + 
-  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr_rigorous, color = SF, group = SF ), 
-            size = 1.5, alpha = 1) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr_rigorous, color = SF, group = SF ),
+            size = 1.5, alpha = 1) +
+  # geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr, color = SF, group = SF ), 
+  #           size = 1.5, alpha = 1) + 
   scale_x_log10() + 
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
@@ -496,8 +502,10 @@ p_burrmorrone
 # goodness of fit: Bergen & Wilson
 p_bergenwilson <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
   #geom_point(size = 2.0) + 
-  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen_rigorous, color = SF, group = SF ), 
-            size = 1.5, alpha = 1) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen_rigorous, color = SF, group = SF ),
+            size = 1.5, alpha = 1) +
+  # geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen, color = SF, group = SF ), 
+  #           size = 1.5, alpha = 1) + 
   scale_x_log10() + 
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
@@ -584,9 +592,9 @@ p_irf_examples
 # approximate the IRFs with a GAM ~ time x SF
 gam_irf <- bam(data = Kelly_IRFs, subset = fit_type=="simple", 
                formula = irf_bergen ~ 
-                 s(log(SF), k = 16, bs = "cr") + 
-                 s(irf_time, k = 40, bs = "cr") + 
-                 ti(log(SF), irf_time, k = c(16, 40), bs = c("cr", "cr") )
+                 s(log(SF), k = 10, bs = "cr") + # initially 16
+                 s(irf_time, k = 50, bs = "cr") + # initially 40
+                 ti(log(SF), irf_time, k = c(10, 50), bs = c("cr", "cr") )
 )
 summary(gam_irf)
 Kelly_IRFs[fit_type=="simple", irf_bergen_gam_pred := predict(gam_irf)]
@@ -604,8 +612,10 @@ p_irf_surface_gam <- ggplot(data = Kelly_IRFs[fit_type=="simple"],
   labs(y = "Spatial frequency [cpd]", x = "Time [ms]", fill = "H(t)")
 p_irf_surface_gam
 
-# save the modelsa
-save(gam_irf, file = "gam_irf.rda", compress = "xz")
+# save the models
+if (do_save) {
+  save(gam_irf, file = "gam_irf.rda", compress = "xz")
+}
 ```
 
 # 5. Fourier analysis of TRFs
@@ -620,19 +630,19 @@ for (unique_SF in unique_SFs) {
   # run fft
   single_IRF <- Kelly_IRFs[fit_type=="simple" & SF==unique_SF]
   # zero padding?
-  n = 2^nextpow2(nrow(single_IRF)*10);
+  n = 2^nextpow2(nrow(single_IRF)*10)+1;
   zeros = rep(0, times = n - nrow(single_IRF))
   # from https://de.mathworks.com/help/matlab/ref/fft.html
   Y <- fft(c(single_IRF$irf_bergen_gam_pred, zeros))
   n <- length(Y) # length of signal 
   Fs <- unique(round(1/diff(single_IRF$irf_time/1000))) # in Hz, artifical sampling rate
   # amplitude
-  P2 = abs(Y/n) 
-  P1 = P2[1:(n/2+1)]
+  P2 = abs(Y) #abs(Y/n) 
+  P1 = P2[1:floor(n/2+1)]
   P1[2:(length(P1)-1)] = 2*P1[2:(length(P1)-1)]
   # phase
   pha2 = Imag(Y) 
-  pha1 = pha2[1:(n/2+1)]
+  pha1 = pha2[1:floor(n/2+1)]
   pha1[2:(length(pha1)-1)] = 2*pha1[2:(length(pha1)-1)]
   # save:
   single_IRF_fft <- data.table(SF = unique_SF, 
@@ -643,11 +653,13 @@ for (unique_SF in unique_SFs) {
 }
 # plot the fourier domain
 p_fft_amp <- ggplot(IRF_ffts, aes(x = f, y = Y, color = SF, group = SF)) + 
-  coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(1e-7, 1e-3/2)) + 
+  #coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(1e-7, 1e-3/2)) + 
+  coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(0.01, 200)) + 
   geom_line(size = 1.5, alpha = 1) + 
   scale_x_log10() + 
-  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x), 
-                labels = trans_format("log10", math_format(10^.x))) + 
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))) +
+  #scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
   theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
   scale_color_viridis_c(trans = "log10") + 
@@ -677,6 +689,7 @@ The Fourier spectrum seems to match - how about some more explicit model predict
 gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
                                     SF_now, # single value, for now
                                     irf_gam, # is the SF x time GAM that encodes the IRFs
+                                    gam_df=NULL, # if you want to not specify a GAM, but a DF containing the IRFs
                                     irf_dur=500, # 
                                     t_res, 
                                     pres_dur = 4 * 8 * 28 * (1000/120), 
@@ -702,11 +715,16 @@ gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
     }
     stim_tfreq <- x * gaussian # combined
     # extract IRF from GAM
-    gam_df <- data.table(irf_time = seq(0, irf_dur, by = t_res), 
+    if (is.null(gam_df)) {
+      gam_df <- data.table(irf_time = seq(0, irf_dur, by = t_res), 
                          SF = SF_now)
-    gam_df[ , irf_predict := predict.bam(object = irf_gam, newdata = gam_df)]
-    trf_time <- gam_df$irf_time
-    trf <- gam_df$irf_predict
+      gam_df[ , irf_predict := predict.bam(object = irf_gam, newdata = gam_df)]
+      trf_time <- gam_df$irf_time
+      trf <- gam_df$irf_predict
+    } else {
+      trf_time <- as.numeric(t(gam_df[,1]))
+      trf <- as.numeric(t(gam_df[,2]))
+    }
     # convolution
     resp_tfreq <- zapsmall(convolve(stim_tfreq, rev(trf), type = "open"))[1:length(stim_tfreq)]
     # add the systematic asymmetry? (as in Kelly & Savoie, 1978 or Bergen & Wilson, 1984)
@@ -719,13 +737,23 @@ gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
   return(sums_tfreqs)
 }
 
+# in case we do not want to read out directly from the GAM
+# e.g., to see the effect of fitting by the GAM
+not_gam_alternative <- Kelly_IRFs[fit_type=="simple", c("irf_time", "irf_bergen", "SF")]
+are_equal(sort(unique(Kelly_stabilized$SF)), sort(unique(not_gam_alternative$SF)))
+
+# let the TRFs predict
 Kelly_stabilized[ , fit_ultimate := NaN]
 for (r in 1:nrow(Kelly_stabilized)) {
   Kelly_stabilized$fit_ultimate[r] <- gam_and_flicker_to_sens(tfreqs = Kelly_stabilized$TF[r], 
                                                               SF = Kelly_stabilized$SF[r], 
                                                               irf_gam = gam_irf, 
+                                                              gam_df = NULL,
+                                                              #gam_df = not_gam_alternative[SF==Kelly_stabilized$SF[r]], 
                                                               t_res = t_res)
 }
+
+
 
 # have a look:
 p_kelly_surface_predicted <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = log10(fit_ultimate) )) + 
@@ -739,8 +767,12 @@ p_kelly_surface_predicted <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF,
   labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
 
 p_kelly_surface_original_and_predicted <- 
-  plot_grid(p_kelly_surface + theme(legend.position = "none") + ggtitle("Kelly's original function"), 
-            p_kelly_surface_predicted + theme(legend.position = "none") + ggtitle("IRF model prediction"), 
+  plot_grid(p_kelly_surface + scale_fill_viridis_d(option = "mako") + 
+              theme(legend.position = "none") + 
+              ggtitle("Kelly's original function"), 
+            p_kelly_surface_predicted + scale_fill_viridis_d(option = "mako") + 
+              theme(legend.position = "none") + 
+              ggtitle("IRF model prediction"), 
             nrow = 1)
 p_kelly_surface_original_and_predicted
 ```
@@ -750,5 +782,128 @@ p_kelly_surface_original_and_predicted
 Finally, save this workspace:
 
 ```{r}
-save.image(file = "estimate_TRFs_for_SFs.RData", compress = "xz")
+if (do_save) {
+  save.image(file = "estimate_TRFs_for_SFs.RData", compress = "xz")
+}
 ```
+
+Make a plot for the paper: 
+```{r}
+SDECTheme <- function(base_size=15, base_family="Helvetica") { 
+  theme_classic(base_size=base_size, base_family=base_family) %+replace% 
+    theme(
+      # size of text
+      axis.text = element_text(size = base_size), # 0.9*base_size
+      legend.text = element_text(size = base_size),
+      # remove grid horizontal and vertical lines
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background  = element_blank(),
+      # panel boxes
+      panel.border = element_blank(),
+      axis.line = element_line(colour = "grey20"), 
+      # facet strips
+      strip.text = element_text(size = base_size, face = "bold"),
+      strip.background = element_rect(fill="transparent", colour = "transparent"),
+      strip.placement = "outside",
+      # legend
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA)
+    )
+}
+
+#### VERSION 1: surface
+
+# for labeled contours
+require(metR) # needs: sudo apt install libudunits2-dev
+# define breaks manually
+breaks_here <- (c(0, exp(seq(log(0.12), log(120), length.out = 100))))
+breaks_here_2 <- c(0, 0.1, 1, 7.5, 25, 50, 75, 100, 120)
+# original kelly
+p_kelly_surface_paper <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = sens )) + 
+  geom_contour_fill(bins = 100, breaks = breaks_here) + 
+  geom_contour(colour = "black", alpha = 0.5, breaks = breaks_here_2) + 
+  geom_text_contour(breaks = breaks_here_2,
+                      label.placer = label_placer_fraction(frac = 0.9)) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  scale_fill_viridis_c(trans = "log10", option = "mako", breaks = c(0.1, 1, 10, 100)#, 
+                       # limits = c(0.1, 
+                       #            max(c(Kelly_stabilized$sens, Kelly_stabilized$fit_ultimate)))
+                       ) +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+
+p_kelly_surface_predicted_paper <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = fit_ultimate )) + 
+  geom_contour_fill(bins = 100, breaks = breaks_here) + 
+  geom_contour(colour = "black", alpha = 0.5, breaks = breaks_here_2) + 
+  geom_text_contour(breaks = breaks_here_2,
+                      label.placer = label_placer_fraction(frac = 0.9)) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  scale_fill_viridis_c(trans = "log10", option = "mako", breaks = c(0.1, 1, 10, 100)#, 
+                       # limits = c(0.1, 
+                       #            max(c(Kelly_stabilized$sens, Kelly_stabilized$fit_ultimate)))
+                       ) +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+
+plot_grid(p_kelly_surface_paper, p_kelly_surface_predicted_paper)
+
+##### VERSION 2: contrast sensitivity plot
+p_kelly_surface_paper_2 <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, 
+                                                               color = SF, group = SF)) + 
+  geom_line(size = 1.5) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE, ylim = c(0.1, 200)) + 
+  scale_y_log10(breaks = c(0.1, 1, 10, 100)) + 
+  scale_x_log10() + 
+  annotation_logticks() + 
+  scale_color_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(color = "SF [cpd]", x = "Temporal frequency [Hz]", 
+       y = "Contrast sensitivity (Kelly, 1979)")
+p_kelly_surface_paper_2
+
+p_kelly_surface_predicted_paper_2 <- ggplot(data = Kelly_stabilized, aes(x = TF, y = fit_ultimate, 
+                                                               color = SF, group = SF)) + 
+  geom_line(size = 1.5) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE, ylim = c(0.1, 200)) + 
+  scale_y_log10(breaks = c(0.1, 1, 10, 100)) + 
+  scale_x_log10() + 
+  annotation_logticks() + 
+  scale_color_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(color = "SF [cpd]", x = "Temporal frequency [Hz]", 
+       y = "Predicted contrast sensitivity")
+p_kelly_surface_predicted_paper_2
+
+mse_overall = (mean((log(Kelly_stabilized[TF<=40, sens])-
+                       log(Kelly_stabilized[TF<=40, fit_ultimate]) )^2))
+mse_overall
+
+# show IRFs
+p_irf_bergenwilson_paper <- ggplot(data = Kelly_IRFs[fit_type=="simple"], 
+                                   aes(x = irf_time, y = irf_bergen, 
+                                       color = SF, group = SF )) + 
+  geom_line(size = 1.5, alpha = 0.8) + 
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  scale_x_continuous(expand = c(0,0), limits = c(0, 250)) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(color = "SF [cpd]", x = "Time [ms]", y = "H(t)") 
+p_irf_bergenwilson_paper
+
+p_irf_surface_gam_paper <- p_irf_surface_gam + SDECTheme()
+
+# combine all
+plot_grid(p_kelly_surface_paper_2, p_irf_bergenwilson_paper, 
+          p_irf_surface_gam_paper, p_kelly_surface_predicted_paper_2, 
+          nrow = 2, ncol = 2, align = "hv") # export as 5 x 9
+
+```
+

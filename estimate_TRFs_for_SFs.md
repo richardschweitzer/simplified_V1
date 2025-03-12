@@ -30,7 +30,7 @@ library(mgcv)
 
     ## Loading required package: nlme
 
-    ## This is mgcv 1.8-39. For overview type 'help("mgcv-package")'.
+    ## This is mgcv 1.9-1. For overview type 'help("mgcv-package")'.
 
     ## 
     ## Attaching package: 'mgcv'
@@ -38,6 +38,12 @@ library(mgcv)
     ## The following object is masked from 'package:pracma':
     ## 
     ##     magic
+
+Shall we save the data during this run?
+
+``` r
+do_save <- FALSE
+```
 
 # 1. Replicate the findings by Burr & Morrone (1993)
 
@@ -55,7 +61,7 @@ trf <- trf[[1]]
 plot(trf_time, trf)
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
 # create a sequence of SOA=60 ms and two positive pulses, and pos/neg pulses
@@ -74,7 +80,7 @@ plot(stim_time, stim_2, col = "red", type = "l")
 lines(stim_time, stim_1, col = "black")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
 
 ``` r
 # now convolute -- we should get Fig. 2 of the paper
@@ -84,7 +90,7 @@ plot(stim_time, resp_2, type = "l", col = "red")
 lines(stim_time, resp_1, col = "black")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-3-3.png)<!-- -->
 
 This above solution uses convolution, but let’s try the solution
 proposed in the paper… Turns out that to reproduce the absolute values
@@ -106,7 +112,7 @@ plot(stim_time, soa_60ms_posneg, type = "l", col = "red")
 lines(stim_time, soa_60ms_pospos, col = "black")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 # probability summation with integrate
@@ -163,7 +169,7 @@ plot(prob_sum_results$soa, prob_sum_results$sum_posneg, col = "red", type = "l",
 lines(prob_sum_results$soa, prob_sum_results$sum_pospos, col = "black", type = "l")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 # ... integrate
@@ -172,7 +178,7 @@ plot(prob_sum_results$soa, prob_sum_results$inta_posneg, col = "red", type = "l"
 lines(prob_sum_results$soa, prob_sum_results$inta_pospos, col = "black", type = "l")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 ``` r
 # ... integrate in loglog coordinates
@@ -183,7 +189,7 @@ ggplot(data = prob_sum_results, aes(x = soa, y = inta_pospos, color = "pos-pos")
   theme_classic()
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-5-3.png)<!-- -->
 
 Now, finally, let’s try to predict the flicker sensitivity data. Burr &
 Morrone used flicker from 0.5 to 50 Hz with a Gaussian temporal envelope
@@ -234,7 +240,7 @@ ggplot(data = flicker_sens_results, aes(x = tfreq, y = sum_tfreq)) +
   theme_classic()
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 That worked so so, but sufficiently well.
 
@@ -249,7 +255,7 @@ source('bergen_wilson.R')
 plot(bergen_wilson(x_step = t_res)[[2]], bergen_wilson(x_step = t_res)[[1]])
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 # 3. Fit flicker sensitivity data to estimate TRFs
 
@@ -299,7 +305,7 @@ ggplot(data = Kelly69, aes(x = tfreq, y = sens, color = as.factor(SF) )) +
   scale_x_log10() + scale_y_log10() + theme_classic()
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ``` r
 # let's try to fit
@@ -372,7 +378,7 @@ for (sf_now in sort(unique(Kelly69$SF))) {
     ## It.   18, RSS =   0.066372, Par. =    135.025    0.98306    10.0424     3.0578   0.135431
     ## It.   19, RSS =   0.066372, Par. =    135.025    0.98306    10.0424     3.0578   0.135431
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
 
     ## Analysis of Variance Table
     ## 
@@ -421,7 +427,7 @@ for (sf_now in sort(unique(Kelly69$SF))) {
     ## It.   13, RSS =   0.068404, Par. =    56.7023    1.08922    8.34046    3.90723   0.643743
     ## It.   14, RSS =   0.068404, Par. =    56.7023    1.08922    8.34046    3.90723   0.643743
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-3.png)<!-- -->
 
     ## Analysis of Variance Table
     ## 
@@ -477,7 +483,7 @@ for (sf_now in sort(unique(Kelly69$SF))) {
     ## It.   25, RSS =   0.026243, Par. =    135.577   0.973359    17.2195    2.06124   0.101638
     ## It.   26, RSS =   0.026243, Par. =    135.577   0.973359    17.2195    2.06124   0.101638
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-8-4.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-4.png)<!-- -->
 
     ## Analysis of Variance Table
     ## 
@@ -499,7 +505,7 @@ ggplot(data = Kelly69, aes(x = tfreq, y = sens, color = as.factor(SF) )) +
   labs(x = "Temporal frequency [Hz]", y = "Contrast sensitivity", color = "SF", linetype = "Fit")
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-8-5.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-5.png)<!-- -->
 
 Both of the two formulations of the TRF seem to fit the data well.
 
@@ -530,13 +536,13 @@ p_kelly_surface <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = log10
 p_kelly_surface
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ``` r
 # parameters for fitting
 do_plot <- FALSE
-pres_dur_stabilized <- 4 * 8 * 28 * (1000/120)
-ramp_sd_stabilized <- 4 * 28 * (1000/120)
+pres_dur_stabilized <- 4 * 8 * 28 * (1000/120) # 4 * 8 * 28 * (1000/120)
+ramp_sd_stabilized <- pres_dur_stabilized / 8
 beta_stabilized <- 1.5
 update_start <- FALSE # use starting parameters of previous fit? 
 start_burr <- c(a0 = 1/4, a1 = 10, a2 = 3, a3 = 5)  # , G = 1.4
@@ -602,7 +608,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
                                                                  ramp_sd = ramp_sd_stabilized, 
                                                                  beta = beta_stabilized, 
                                                                  G = 1) ), 
-                       weights = 1/sens, # use weights to account for lowest sensitivities?
+                       #weights = 1/sens, # use weights to account for lowest sensitivities?
                        start = start_burr, 
                        lower = c(a0 = 0, a1 = 0, a2 = 0, a3 = 0),  # , G = 1
                        trace = FALSE, control = nls.lm.control(maxiter = 200)
@@ -731,7 +737,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29    10.1598                                
-    ## 2     28     0.8092  1 9.3506  323.54 < 2.2e-16 ***
+    ## 2     28     0.8084  1 9.3514   323.9 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -739,8 +745,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     32.106                                
-    ## 2     28      0.820  1 31.287  1068.3 < 2.2e-16 ***
+    ## 1     29     17.783                                
+    ## 2     28      0.817  1 16.966  581.42 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.0596583179235247 Burr & Morrone"
@@ -751,7 +757,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     9.6387                                
-    ## 2     28     0.6679  1 8.9708  376.06 < 2.2e-16 ***
+    ## 2     28     0.6677  1  8.971  376.19 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -759,8 +765,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    29.1977                                
-    ## 2     28     0.6726  1 28.525  1187.6 < 2.2e-16 ***
+    ## 1     29    17.6214                                
+    ## 2     28     0.6833  1 16.938  694.13 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.0711822979492869 Burr & Morrone"
@@ -771,7 +777,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     9.0252                                
-    ## 2     28     0.5150  1 8.5103  462.74 < 2.2e-16 ***
+    ## 2     28     0.5147  1 8.5105  462.98 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -779,8 +785,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    26.8095                                
-    ## 2     28     0.5205  1 26.289  1414.2 < 2.2e-16 ***
+    ## 1     29     17.463                                
+    ## 2     28      0.522  1 16.941  908.66 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.0849323232317123 Burr & Morrone"
@@ -791,7 +797,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     8.4771                                
-    ## 2     28     0.3685  1 8.1086  616.08 < 2.2e-16 ***
+    ## 2     28     0.3684  1 8.1087  616.25 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -799,8 +805,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    24.0990                                
-    ## 2     28     0.3743  1 23.725    1775 < 2.2e-16 ***
+    ## 1     29    17.3022                                
+    ## 2     28     0.3737  1 16.929  1268.5 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.101338390826821 Burr & Morrone"
@@ -811,7 +817,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     7.8852                                
-    ## 2     28     0.2544  1 7.6308  839.92 < 2.2e-16 ***
+    ## 2     28     0.2545  1 7.6307  839.61 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -819,8 +825,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    27.5974                                
-    ## 2     28     0.2626  1 27.335    2914 < 2.2e-16 ***
+    ## 1     29    17.1454                                
+    ## 2     28     0.2626  1 16.883  1799.8 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.120913558756098 Burr & Morrone"
@@ -831,7 +837,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     7.4021                                
-    ## 2     28     0.1967  1 7.2054  1025.7 < 2.2e-16 ***
+    ## 2     28     0.1964  1 7.2058  1027.5 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -839,8 +845,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    25.9168                                
-    ## 2     28     0.2059  1 25.711  3496.5 < 2.2e-16 ***
+    ## 1     29    16.9915                                
+    ## 2     28     0.2075  1 16.784  2264.3 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.144269990590721 Burr & Morrone"
@@ -851,7 +857,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     6.6873                                
-    ## 2     28     0.1998  1 6.4875  908.98 < 2.2e-16 ***
+    ## 2     28     0.1998  1 6.4875  908.97 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -859,8 +865,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29      23.70                                
-    ## 2     28       0.21  1  23.49  3132.1 < 2.2e-16 ***
+    ## 1     29     16.840                                
+    ## 2     28      0.206  1 16.634  2261.4 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.172138099309703 Burr & Morrone"
@@ -879,8 +885,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    24.2148                                
-    ## 2     28     0.2363  1 23.978  2840.7 < 2.2e-16 ***
+    ## 1     29    16.7075                                
+    ## 2     28     0.2349  1 16.473  1963.4 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.205389389107391 Burr & Morrone"
@@ -891,7 +897,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     5.8739                                
-    ## 2     28     0.2861  1 5.5878   546.8 < 2.2e-16 ***
+    ## 2     28     0.2861  1 5.5878  546.77 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -899,8 +905,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    21.1714                                
-    ## 2     28     0.2925  1 20.879  1998.7 < 2.2e-16 ***
+    ## 1     29    16.5996                                
+    ## 2     28     0.2924  1 16.307  1561.5 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.245063709469745 Burr & Morrone"
@@ -919,8 +925,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     20.649                                
-    ## 2     28      0.395  1 20.254  1435.9 < 2.2e-16 ***
+    ## 1     29    10.3656                                
+    ## 2     28     0.3897  1  9.976  716.84 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.292401773821287 Burr & Morrone"
@@ -939,8 +945,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    19.0101                                
-    ## 2     28     0.4942  1 18.516    1049 < 2.2e-16 ***
+    ## 1     29     9.9769                                
+    ## 2     28     0.4941  1 9.4827  537.35 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.348883959680657 Burr & Morrone"
@@ -959,8 +965,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    19.3153                                
-    ## 2     28     0.5977  1 18.718  876.88 < 2.2e-16 ***
+    ## 1     29     9.6437                                
+    ## 2     28     0.5980  1 9.0457  423.54 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.416276603700937 Burr & Morrone"
@@ -979,8 +985,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     18.663                                
-    ## 2     28      0.711  1 17.952  706.92 < 2.2e-16 ***
+    ## 1     29     10.850                                
+    ## 2     28      0.711  1 10.139  399.28 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.496687239354311 Burr & Morrone"
@@ -999,8 +1005,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    18.2402                                
-    ## 2     28     0.8137  1 17.427  599.63 < 2.2e-16 ***
+    ## 1     29     10.796                                
+    ## 2     28      0.813  1  9.983  343.82 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.592630504679146 Burr & Morrone"
@@ -1011,7 +1017,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     5.8146                                
-    ## 2     28     0.4728  1 5.3418  316.38 < 2.2e-16 ***
+    ## 2     28     0.4729  1 5.3417  316.31 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1019,8 +1025,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    18.0219                                
-    ## 2     28     0.8999  1 17.122  532.72 < 2.2e-16 ***
+    ## 1     29    11.4898                                
+    ## 2     28     0.9122  1 10.578  324.69 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.707106781186547 Burr & Morrone"
@@ -1039,8 +1045,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    18.0757                                
-    ## 2     28     0.9128  1 17.163  526.46 < 2.2e-16 ***
+    ## 1     29     9.4157                                
+    ## 2     28     0.9133  1 8.5024  260.66 1.023e-15 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "0.843696023158145 Burr & Morrone"
@@ -1051,7 +1057,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     4.8285                                
-    ## 2     28     0.2908  1 4.5377  436.89 < 2.2e-16 ***
+    ## 2     28     0.2908  1 4.5377  436.93 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1059,8 +1065,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     51.915                                
-    ## 2     28      0.900  1 51.015  1586.9 < 2.2e-16 ***
+    ## 1     29    10.6101                                
+    ## 2     28     0.9005  1 9.7096   301.9 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "1.00666971160764 Burr & Morrone"
@@ -1079,8 +1085,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     53.954                                
-    ## 2     28      0.835  1  53.12  1782.2 < 2.2e-16 ***
+    ## 1     29    10.6007                                
+    ## 2     28     0.8346  1 9.7661  327.64 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "1.20112443398143 Burr & Morrone"
@@ -1099,8 +1105,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    20.2065                                
-    ## 2     28     0.7374  1 19.469  739.25 < 2.2e-16 ***
+    ## 1     29    10.7226                                
+    ## 2     28     0.7374  1 9.9852  379.14 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "1.43314126696356 Burr & Morrone"
@@ -1119,8 +1125,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     61.777                                
-    ## 2     28      0.606  1 61.171  2826.7 < 2.2e-16 ***
+    ## 1     29    10.9172                                
+    ## 2     28     0.6059  1 10.311  476.49 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "1.7099759466767 Burr & Morrone"
@@ -1139,8 +1145,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    23.9266                                
-    ## 2     28     0.4647  1 23.462  1413.5 < 2.2e-16 ***
+    ## 1     29    11.2170                                
+    ## 2     28     0.4633  1 10.754  649.94 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "2.04028577336837 Burr & Morrone"
@@ -1159,8 +1165,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    27.1845                                
-    ## 2     28     0.3046  1  26.88  2470.6 < 2.2e-16 ***
+    ## 1     29    11.6365                                
+    ## 2     28     0.3017  1 11.335  1051.8 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "2.43440034644909 Burr & Morrone"
@@ -1171,7 +1177,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     6.6651                                
-    ## 2     28     0.1648  1 6.5003  1104.4 < 2.2e-16 ***
+    ## 2     28     0.1648  1 6.5003  1104.6 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1179,8 +1185,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     89.816                                
-    ## 2     28      0.167  1 89.649   15068 < 2.2e-16 ***
+    ## 1     29     12.812                                
+    ## 2     28      0.165  1 12.647  2145.7 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "2.90464459643197 Burr & Morrone"
@@ -1199,8 +1205,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    108.224                                
-    ## 2     28      0.117  1 108.11   25878 < 2.2e-16 ***
+    ## 1     29     13.341                                
+    ## 2     28      0.117  1 13.224  3165.6 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "3.46572421577573 Burr & Morrone"
@@ -1211,7 +1217,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     8.7465                                
-    ## 2     28     0.1497  1 8.5968  1607.5 < 2.2e-16 ***
+    ## 2     28     0.1498  1 8.5968  1607.2 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1219,8 +1225,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     47.683                                
-    ## 2     28      0.150  1 47.532  8857.6 < 2.2e-16 ***
+    ## 1     29    14.5021                                
+    ## 2     28     0.1513  1 14.351  2655.4 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "4.13518554200014 Burr & Morrone"
@@ -1231,7 +1237,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29     9.4411                                
-    ## 2     28     0.2570  1 9.1841  1000.5 < 2.2e-16 ***
+    ## 2     28     0.2571  1 9.1839  1000.1 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1239,8 +1245,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     53.282                                
-    ## 2     28      0.261  1 53.021  5695.4 < 2.2e-16 ***
+    ## 1     29    14.9723                                
+    ## 2     28     0.2581  1 14.714  1596.1 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "4.93396427474814 Burr & Morrone"
@@ -1250,8 +1256,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    10.0525                                
-    ## 2     28     0.4221  1 9.6304  638.81 < 2.2e-16 ***
+    ## 1     29     10.053                                
+    ## 2     28      0.422  1 9.6305  638.94 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1259,8 +1265,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     73.919                                
-    ## 2     28      0.423  1 73.495  4860.6 < 2.2e-16 ***
+    ## 1     29    16.0019                                
+    ## 2     28     0.4315  1  15.57  1010.3 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "5.88704018652475 Burr & Morrone"
@@ -1279,8 +1285,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    110.806                                
-    ## 2     28      0.626  1 110.18  4928.9 < 2.2e-16 ***
+    ## 1     29    16.1064                                
+    ## 2     28     0.6298  1 15.477  688.04 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "7.02421830152518 Burr & Morrone"
@@ -1291,7 +1297,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29    12.2724                                
-    ## 2     28     0.8199  1 11.453  391.13 < 2.2e-16 ***
+    ## 2     28     0.8203  1 11.452  390.93 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1299,8 +1305,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29    180.950                                
-    ## 2     28      0.824  1 180.13  6122.8 < 2.2e-16 ***
+    ## 1     29    17.1629                                
+    ## 2     28     0.8243  1 16.339  554.98 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "8.3810609719326 Burr & Morrone"
@@ -1311,7 +1317,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29    12.5924                                
-    ## 2     28     0.9923  1   11.6  327.34 < 2.2e-16 ***
+    ## 2     28     0.9921  1   11.6  327.39 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1319,8 +1325,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     330.69                                
-    ## 2     28       1.00  1  329.7  9250.6 < 2.2e-16 ***
+    ## 1     29    17.4371                                
+    ## 2     28     1.0041  1 16.433  458.23 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## [1] "10 Burr & Morrone"
@@ -1331,7 +1337,7 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = 7466.66666666667, ramp_sd = 933.333333333333, beta = 1.5, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
     ## 1     29    14.9115                                
-    ## 2     28     1.1136  1 13.798  346.93 < 2.2e-16 ***
+    ## 2     28     1.1136  1 13.798  346.91 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## Analysis of Variance Table
@@ -1339,8 +1345,8 @@ for (sf_now in sort(unique(Kelly_stabilized$SF))) {
     ## Model 1: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ## Model 2: log(sens) ~ log(flicker_to_sens(tfreqs = TF, a0 = a0, a1 = a1, a2 = a2, a3 = a3, a4 = a4, t_res = 1000/1440, pres_dur = pres_dur_stabilized, ramp_sd = ramp_sd_stabilized, beta = beta_stabilized, G = 1))
     ##   Res.Df Res.Sum Sq Df Sum Sq F value    Pr(>F)    
-    ## 1     29     685.50                                
-    ## 2     28       1.12  1 684.38   17109 < 2.2e-16 ***
+    ## 1     29    17.9775                                
+    ## 2     28     1.1227  1 16.855  420.37 < 2.2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -1352,8 +1358,10 @@ if (!is.null(par_cluster)) {
 # goodness of fit: Burr & Morrone
 p_burrmorrone <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
   #geom_point(size = 2.0) + 
-  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr_rigorous, color = SF, group = SF ), 
-            size = 1.5, alpha = 1) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr_rigorous, color = SF, group = SF ),
+            size = 1.5, alpha = 1) +
+  # geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_burr, color = SF, group = SF ), 
+  #           size = 1.5, alpha = 1) + 
   scale_x_log10() + 
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
@@ -1374,14 +1382,16 @@ p_burrmorrone <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = S
 p_burrmorrone
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
 
 ``` r
 # goodness of fit: Bergen & Wilson
 p_bergenwilson <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = SF, group = SF )) + 
   #geom_point(size = 2.0) + 
-  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen_rigorous, color = SF, group = SF ), 
-            size = 1.5, alpha = 1) + 
+  geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen_rigorous, color = SF, group = SF ),
+            size = 1.5, alpha = 1) +
+  # geom_line(data = Kelly_stabilized, aes(x = TF, y = fit_nls_bergen, color = SF, group = SF ), 
+  #           size = 1.5, alpha = 1) + 
   scale_x_log10() + 
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
@@ -1393,7 +1403,7 @@ p_bergenwilson <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = 
 p_bergenwilson
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-3.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->
 
 ``` r
 # ground truth
@@ -1411,7 +1421,7 @@ p_groundtruth <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, color = S
 p_groundtruth
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-4.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-4.png)<!-- -->
 
 ``` r
 # combine
@@ -1422,7 +1432,7 @@ p_groundtruth_bergenwilson <- plot_grid(p_groundtruth,
 p_groundtruth_bergenwilson
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-9-5.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-5.png)<!-- -->
 
 ``` r
 ## look at parameters
@@ -1430,266 +1440,270 @@ Kelly_IRF_coefs[model=="Bergen & Wilson"]
 ```
 
     ##              SF           model fit_type         a0         a1       a2
-    ##  1:  0.05000000 Bergen & Wilson rigorous 0.20709367 1.00011652 5.982352
-    ##  2:  0.05000000 Bergen & Wilson   simple 0.13508705 0.99989312 6.040073
-    ##  3:  0.05965832 Bergen & Wilson rigorous 0.35739903 0.99998726 6.007165
-    ##  4:  0.05965832 Bergen & Wilson   simple 0.14302766 1.00001469 5.953618
-    ##  5:  0.07118230 Bergen & Wilson rigorous 0.37105469 0.99995611 6.027849
-    ##  6:  0.07118230 Bergen & Wilson   simple 0.15126742 0.99998319 5.984813
-    ##  7:  0.08493232 Bergen & Wilson rigorous 0.40666240 0.99997306 6.045209
-    ##  8:  0.08493232 Bergen & Wilson   simple 0.15721568 0.99988514 6.004329
-    ##  9:  0.10133839 Bergen & Wilson rigorous 0.62147014 0.99998973 6.151677
-    ## 10:  0.10133839 Bergen & Wilson   simple 0.14866469 0.99990382 6.044721
-    ## 11:  0.12091356 Bergen & Wilson rigorous 0.54140242 0.99990555 6.259600
-    ## 12:  0.12091356 Bergen & Wilson   simple 0.15640343 0.99995594 6.098339
-    ## 13:  0.14426999 Bergen & Wilson rigorous 1.08567839 0.99690787 6.325701
-    ## 14:  0.14426999 Bergen & Wilson   simple 0.16686405 0.97908466 6.196879
+    ##           <num>          <char>   <char>      <num>      <num>    <num>
+    ##  1:  0.05000000 Bergen & Wilson rigorous 0.32658727 0.99999336 6.004004
+    ##  2:  0.05000000 Bergen & Wilson   simple 0.13537809 0.99999590 6.011701
+    ##  3:  0.05965832 Bergen & Wilson rigorous 0.34503753 1.00000541 6.000671
+    ##  4:  0.05965832 Bergen & Wilson   simple 0.14036052 0.99978475 6.064025
+    ##  5:  0.07118230 Bergen & Wilson rigorous 0.24226582 0.99999711 5.965182
+    ##  6:  0.07118230 Bergen & Wilson   simple 0.14844887 1.00008772 6.000636
+    ##  7:  0.08493232 Bergen & Wilson rigorous 0.53964622 0.99999061 6.059688
+    ##  8:  0.08493232 Bergen & Wilson   simple 0.15914469 1.00003592 5.996157
+    ##  9:  0.10133839 Bergen & Wilson rigorous 0.49370529 0.99998107 6.141780
+    ## 10:  0.10133839 Bergen & Wilson   simple 0.14866566 0.99990396 6.044725
+    ## 11:  0.12091356 Bergen & Wilson rigorous 1.32068015 0.99998601 6.229332
+    ## 12:  0.12091356 Bergen & Wilson   simple 0.14820896 1.00054971 6.090169
+    ## 13:  0.14426999 Bergen & Wilson rigorous 1.09187665 0.99691648 6.324813
+    ## 14:  0.14426999 Bergen & Wilson   simple 0.19930807 0.98274614 6.235294
     ## 15:  0.17213810 Bergen & Wilson rigorous 0.64203931 1.00920824 6.379588
-    ## 16:  0.17213810 Bergen & Wilson   simple 0.20567470 0.97104917 6.313061
-    ## 17:  0.20538939 Bergen & Wilson rigorous 1.10542247 0.99237593 6.468618
-    ## 18:  0.20538939 Bergen & Wilson   simple 0.22856165 0.96281945 6.426675
-    ## 19:  0.24506371 Bergen & Wilson rigorous 1.38289423 1.00802945 6.587063
-    ## 20:  0.24506371 Bergen & Wilson   simple 0.15141201 0.92242329 6.313881
+    ## 16:  0.17213810 Bergen & Wilson   simple 0.22427842 0.97321817 6.310482
+    ## 17:  0.20538939 Bergen & Wilson rigorous 1.03057760 0.99185137 6.481696
+    ## 18:  0.20538939 Bergen & Wilson   simple 0.22912881 0.96314012 6.427339
+    ## 19:  0.24506371 Bergen & Wilson rigorous 1.22241612 0.99088381 6.578476
+    ## 20:  0.24506371 Bergen & Wilson   simple 0.16237847 0.92815599 6.349180
     ## 21:  0.29240177 Bergen & Wilson rigorous 0.11584877 0.75744530 3.422642
-    ## 22:  0.29240177 Bergen & Wilson   simple 0.17641151 0.91542105 6.426889
+    ## 22:  0.29240177 Bergen & Wilson   simple 0.17546801 0.91504442 6.435725
     ## 23:  0.34888396 Bergen & Wilson rigorous 0.11989675 0.71095376 3.462611
-    ## 24:  0.34888396 Bergen & Wilson   simple 0.26942039 0.93343307 6.752963
+    ## 24:  0.34888396 Bergen & Wilson   simple 0.26539262 0.93204524 6.718235
     ## 25:  0.41627660 Bergen & Wilson rigorous 0.12389588 0.66073532 3.501481
     ## 26:  0.41627660 Bergen & Wilson   simple 0.32191657 0.93171146 6.884831
     ## 27:  0.49668724 Bergen & Wilson rigorous 0.12704186 0.60936987 3.587207
-    ## 28:  0.49668724 Bergen & Wilson   simple 0.26658526 0.89952616 6.989498
-    ## 29:  0.59263050 Bergen & Wilson rigorous 0.13081780 0.55887437 3.679927
-    ## 30:  0.59263050 Bergen & Wilson   simple 0.18801780 0.82136665 6.924133
+    ## 28:  0.49668724 Bergen & Wilson   simple 0.27519273 0.90262762 6.994317
+    ## 29:  0.59263050 Bergen & Wilson rigorous 0.13046121 0.56058269 3.698843
+    ## 30:  0.59263050 Bergen & Wilson   simple 0.16739934 0.79655560 6.841066
     ## 31:  0.70710678 Bergen & Wilson rigorous 0.13324880 0.51052826 3.842140
-    ## 32:  0.70710678 Bergen & Wilson   simple 0.26332354 0.85330055 7.235467
-    ## 33:  0.84369602 Bergen & Wilson rigorous 0.13531239 0.45951324 4.057397
-    ## 34:  0.84369602 Bergen & Wilson   simple 0.23662260 0.80139258 7.180035
+    ## 32:  0.70710678 Bergen & Wilson   simple 0.26007717 0.85203459 7.247023
+    ## 33:  0.84369602 Bergen & Wilson rigorous 0.13533584 0.45757971 4.050357
+    ## 34:  0.84369602 Bergen & Wilson   simple 0.23700113 0.80488853 7.290715
     ## 35:  1.00666971 Bergen & Wilson rigorous 0.13840800 0.40724108 4.268582
-    ## 36:  1.00666971 Bergen & Wilson   simple 0.27497498 0.79845911 7.286431
-    ## 37:  1.20112443 Bergen & Wilson rigorous 0.14005601 0.35321295 4.548702
+    ## 36:  1.00666971 Bergen & Wilson   simple 0.27493690 0.79843584 7.285638
+    ## 37:  1.20112443 Bergen & Wilson rigorous 0.14003319 0.35401023 4.549172
     ## 38:  1.20112443 Bergen & Wilson   simple 0.25512694 0.74004248 7.184132
     ## 39:  1.43314127 Bergen & Wilson rigorous 0.14167594 0.29631678 4.816802
-    ## 40:  1.43314127 Bergen & Wilson   simple 0.34799382 0.77466841 7.058415
+    ## 40:  1.43314127 Bergen & Wilson   simple 0.35480513 0.77887921 7.065068
     ## 41:  1.70997595 Bergen & Wilson rigorous 0.14176732 0.23421487 5.081253
-    ## 42:  1.70997595 Bergen & Wilson   simple 0.26621510 0.65249611 6.791312
-    ## 43:  2.04028577 Bergen & Wilson rigorous 0.14000939 0.16886991 5.321005
-    ## 44:  2.04028577 Bergen & Wilson   simple 0.33844591 0.65794063 6.036047
-    ## 45:  2.43440035 Bergen & Wilson rigorous 0.30426552 1.44009614 5.445649
-    ## 46:  2.43440035 Bergen & Wilson   simple 0.29856539 0.54686458 5.369544
+    ## 42:  1.70997595 Bergen & Wilson   simple 0.24686585 0.60211882 6.474807
+    ## 43:  2.04028577 Bergen & Wilson rigorous 0.14017340 0.16755304 5.312550
+    ## 44:  2.04028577 Bergen & Wilson   simple 0.35200730 0.65668312 5.813591
+    ## 45:  2.43440035 Bergen & Wilson rigorous 0.31911527 1.41993521 5.440962
+    ## 46:  2.43440035 Bergen & Wilson   simple 0.29381522 0.54456094 5.452535
     ## 47:  2.90464460 Bergen & Wilson rigorous 0.12688978 0.01201489 5.750513
     ## 48:  2.90464460 Bergen & Wilson   simple 0.32057549 0.60490842 5.731701
-    ## 49:  3.46572422 Bergen & Wilson rigorous 0.30157188 1.38024148 6.054293
-    ## 50:  3.46572422 Bergen & Wilson   simple 0.33073305 0.65456764 6.075009
-    ## 51:  4.13518554 Bergen & Wilson rigorous 0.31884049 1.30990546 6.375111
-    ## 52:  4.13518554 Bergen & Wilson   simple 0.23496856 0.58047287 6.370419
-    ## 53:  4.93396427 Bergen & Wilson rigorous 0.23470194 1.34357561 6.640822
-    ## 54:  4.93396427 Bergen & Wilson   simple 0.19613701 0.59102901 6.662313
+    ## 49:  3.46572422 Bergen & Wilson rigorous 0.28590356 1.40161831 6.044159
+    ## 50:  3.46572422 Bergen & Wilson   simple 0.27454393 0.58278935 6.067781
+    ## 51:  4.13518554 Bergen & Wilson rigorous 0.28009937 1.35236336 6.377757
+    ## 52:  4.13518554 Bergen & Wilson   simple 0.25005665 0.60394639 6.356407
+    ## 53:  4.93396427 Bergen & Wilson rigorous 0.75617007 1.10694487 6.615564
+    ## 54:  4.93396427 Bergen & Wilson   simple 0.19288310 0.58293923 6.617445
     ## 55:  5.88704019 Bergen & Wilson rigorous 0.43538215 1.13823740 7.018521
-    ## 56:  5.88704019 Bergen & Wilson   simple 0.19247966 0.69326621 7.159946
-    ## 57:  7.02421830 Bergen & Wilson rigorous 0.45933847 1.08944481 7.364960
-    ## 58:  7.02421830 Bergen & Wilson   simple 0.05881029 0.29646248 7.304417
-    ## 59:  8.38106097 Bergen & Wilson rigorous 0.90127737 1.02794287 7.674413
-    ## 60:  8.38106097 Bergen & Wilson   simple 0.04189712 0.40669532 7.782962
-    ## 61: 10.00000000 Bergen & Wilson rigorous 0.10112090 1.13229860 8.037786
-    ## 62: 10.00000000 Bergen & Wilson   simple 0.03195986 0.58008373 7.960511
+    ## 56:  5.88704019 Bergen & Wilson   simple 0.18439479 0.68312574 7.271228
+    ## 57:  7.02421830 Bergen & Wilson rigorous 0.16820121 1.24434563 7.368181
+    ## 58:  7.02421830 Bergen & Wilson   simple 0.04692713 0.11689176 7.294484
+    ## 59:  8.38106097 Bergen & Wilson rigorous 0.86744301 1.02898395 7.705786
+    ## 60:  8.38106097 Bergen & Wilson   simple 0.09936827 0.75475969 7.985724
+    ## 61: 10.00000000 Bergen & Wilson rigorous 0.94189023 1.01411830 8.110762
+    ## 62: 10.00000000 Bergen & Wilson   simple 0.03255722 0.58473554 7.909026
     ##              SF           model fit_type         a0         a1       a2
-    ##            a3          a4  G        rss
-    ##  1: 12.287884  1.19627943 NA 0.17000159
-    ##  2: 11.742455  1.80828566 NA 0.17112973
-    ##  3: 12.450811  0.72899888 NA 0.15445016
-    ##  4: 11.921482  1.85858642 NA 0.15498397
-    ##  5: 12.365467  0.74259231 NA 0.13561395
-    ##  6: 11.813052  1.85186574 NA 0.13634080
-    ##  7: 12.323389  0.71965588 NA 0.11472397
-    ##  8: 11.729843  1.88967319 NA 0.11561253
-    ##  9: 12.177007  0.48980442 NA 0.09531632
-    ## 10: 11.481746  2.12008356 NA 0.09685219
-    ## 11: 11.876661  0.58713958 NA 0.08381530
-    ## 12: 11.357567  2.13372362 NA 0.08575186
-    ## 13: 11.869164  0.30300579 NA 0.08448126
-    ## 14: 11.150577  2.07047916 NA 0.08660119
-    ## 15: 11.617210  0.53455708 NA 0.09061620
-    ## 16: 11.093009  1.70815146 NA 0.09187496
-    ## 17: 11.531921  0.31413557 NA 0.10108956
-    ## 18: 10.918539  1.56261216 NA 0.10220754
-    ## 19: 11.320024  0.26083593 NA 0.11485597
-    ## 20: 10.554631  2.60423953 NA 0.11876650
-    ## 21: 20.892272 13.74628147 NA 0.12514061
-    ## 22: 10.539627  2.26757203 NA 0.13285571
-    ## 23: 20.585224 14.36210054 NA 0.13258102
-    ## 24: 10.394139  1.40266438 NA 0.14610187
-    ## 25: 20.325222 15.29112356 NA 0.13684856
-    ## 26: 10.308401  1.18064332 NA 0.15935598
-    ## 27: 19.715624 16.23059943 NA 0.13631106
-    ## 28: 10.005871  1.46356634 NA 0.17047534
-    ## 29: 19.154007 17.36387531 NA 0.12994011
-    ## 30:  9.726143  2.24036870 NA 0.17927809
-    ## 31: 18.172361 18.41747046 NA 0.11786647
-    ## 32:  9.669290  1.50075096 NA 0.18055698
-    ## 33: 17.031521 18.91465883 NA 0.10191413
-    ## 34:  9.690074  1.73584689 NA 0.17929763
-    ## 35: 16.122299 19.17224272 NA 0.08498549
-    ## 36:  9.725259  1.42501693 NA 0.17264542
-    ## 37: 15.042245 18.63088115 NA 0.07007233
-    ## 38:  9.873408  1.55015540 NA 0.16228418
-    ## 39: 14.210561 17.97057927 NA 0.05936271
-    ## 40: 10.358147  1.02151919 NA 0.14710807
-    ## 41: 13.521056 17.29912590 NA 0.05383649
-    ## 42: 10.657123  1.28811764 NA 0.12883392
-    ## 43: 13.011117 17.00206767 NA 0.05306961
-    ## 44: 12.195765  0.70588573 NA 0.10430746
-    ## 45: 13.181508  0.53248973 NA 0.07671784
-    ## 46: 13.271732  0.12961781 NA 0.07713443
-    ## 47: 12.291709 11.18785402 NA 0.06432940
-    ## 48: 12.471458  0.08145575 NA 0.06463389
-    ## 49: 12.128562  0.46308383 NA 0.07312897
-    ## 50: 11.996922  0.12414076 NA 0.07325473
-    ## 51: 11.721680  0.39513539 NA 0.09580870
-    ## 52: 11.742120  0.26992266 NA 0.09648590
-    ## 53: 11.350768  0.42105271 NA 0.12278222
-    ## 54: 11.210719  0.16456669 NA 0.12296635
-    ## 55: 11.000106  0.18565734 NA 0.14875787
-    ## 56: 10.740132  0.19710923 NA 0.14951191
-    ## 57: 10.685280  0.12551867 NA 0.17111543
-    ## 58: 10.336351  0.22905138 NA 0.17151946
-    ## 59: 10.414939  0.03951472 NA 0.18824851
-    ## 60:  9.980739  0.39370833 NA 0.18878750
-    ## 61:  9.991803  0.17550894 NA 0.19942674
-    ## 62:  9.867344  0.16584816 NA 0.20000469
-    ##            a3          a4  G        rss
+    ##            a3           a4     G        rss
+    ##         <num>        <num> <num>      <num>
+    ##  1: 12.483355  0.753361116    NA 0.16991528
+    ##  2: 11.817349  1.819611262    NA 0.17082065
+    ##  3: 12.455652  0.757386850    NA 0.15442511
+    ##  4: 11.625446  1.833709132    NA 0.15621110
+    ##  5: 12.301100  1.160094513    NA 0.13558048
+    ##  6: 11.752737  1.878487125    NA 0.13654196
+    ##  7: 12.383837  0.539848603    NA 0.11470873
+    ##  8: 11.763206  1.872048568    NA 0.11552021
+    ##  9: 12.131575  0.617649150    NA 0.09533333
+    ## 10: 11.481767  2.120102903    NA 0.09685217
+    ## 11: 12.135860  0.242271681    NA 0.08374252
+    ## 12: 11.297596  2.257994412    NA 0.08609498
+    ## 13: 11.872356  0.301332381    NA 0.08448159
+    ## 14: 11.282791  1.709009751    NA 0.08576512
+    ## 15: 11.617210  0.534557077    NA 0.09061620
+    ## 16: 11.185678  1.563155360    NA 0.09159669
+    ## 17: 11.492982  0.336216338    NA 0.10109214
+    ## 18: 10.921553  1.561583631    NA 0.10219068
+    ## 19: 11.317396  0.288704946    NA 0.11485638
+    ## 20: 10.603117  2.395566149    NA 0.11796866
+    ## 21: 20.892272 13.746281468    NA 0.12514061
+    ## 22: 10.512398  2.273523001    NA 0.13284259
+    ## 23: 20.585224 14.362100537    NA 0.13258102
+    ## 24: 10.444733  1.435369475    NA 0.14614198
+    ## 25: 20.325222 15.291123555    NA 0.13684856
+    ## 26: 10.308401  1.180643316    NA 0.15935598
+    ## 27: 19.715624 16.230599431    NA 0.13631106
+    ## 28: 10.023470  1.411195489    NA 0.17039760
+    ## 29: 19.010284 17.229949605    NA 0.12995315
+    ## 30:  9.669929  2.607177475    NA 0.18049191
+    ## 31: 18.172361 18.417470464    NA 0.11786647
+    ## 32:  9.643738  1.514461987    NA 0.18060771
+    ## 33: 17.071657 18.961334353    NA 0.10190885
+    ## 34:  9.528558  1.697637220    NA 0.17933572
+    ## 35: 16.122299 19.172242723    NA 0.08498549
+    ## 36:  9.724603  1.425868085    NA 0.17264735
+    ## 37: 15.039235 18.697549435    NA 0.07007367
+    ## 38:  9.873408  1.550155404    NA 0.16228418
+    ## 39: 14.210561 17.970579265    NA 0.05936271
+    ## 40: 10.354918  0.993737087    NA 0.14710549
+    ## 41: 13.521056 17.299125898    NA 0.05383649
+    ## 42: 11.136842  1.413392752    NA 0.12863055
+    ## 43: 13.038262 16.919358092    NA 0.05306939
+    ## 44: 12.643951  0.608023142    NA 0.10381028
+    ## 45: 13.169277  0.497358402    NA 0.07671302
+    ## 46: 12.989870  0.121891743    NA 0.07677388
+    ## 47: 12.291709 11.187854017    NA 0.06432940
+    ## 48: 12.471458  0.081455753    NA 0.06463389
+    ## 49: 12.131949  0.481827417    NA 0.07313517
+    ## 50: 11.760647  0.009023445    NA 0.07351417
+    ## 51: 11.688665  0.442687670    NA 0.09582860
+    ## 52: 11.520097  0.101717764    NA 0.09601457
+    ## 53: 11.542983  0.143309377    NA 0.12277040
+    ## 54: 11.487541  0.281132726    NA 0.12414392
+    ## 55: 11.000106  0.185657341    NA 0.14875787
+    ## 56: 10.524370  0.194151759    NA 0.14997967
+    ## 57: 10.570984  0.319287259    NA 0.17115746
+    ## 58: 10.296601  0.325535745    NA 0.17158073
+    ## 59: 10.370947  0.040983920    NA 0.18823481
+    ## 60:  9.878284  0.145063544    NA 0.18937137
+    ## 61: 10.001531  0.020167184    NA 0.19943157
+    ## 62:  9.723625  0.019712916    NA 0.20023839
+    ##            a3           a4     G        rss
 
 ``` r
 Kelly_IRF_coefs[model=="Burr & Morrone"]
 ```
 
-    ##              SF          model fit_type          a0        a1        a2
-    ##  1:  0.05000000 Burr & Morrone rigorous 0.083084711 15.307892 2.3844641
-    ##  2:  0.05000000 Burr & Morrone   simple 0.025354548 10.111920 2.9737090
-    ##  3:  0.05965832 Burr & Morrone rigorous 0.045646397 19.431653 2.2062248
-    ##  4:  0.05965832 Burr & Morrone   simple 0.027586003 10.121933 2.9721908
-    ##  5:  0.07118230 Burr & Morrone rigorous 0.049300048 19.279234 2.1865924
-    ##  6:  0.07118230 Burr & Morrone   simple 0.029837998 10.122142 2.9718072
-    ##  7:  0.08493232 Burr & Morrone rigorous 0.058185552 18.937479 2.1435842
-    ##  8:  0.08493232 Burr & Morrone   simple 0.065421099  5.733652 0.9753795
-    ##  9:  0.10133839 Burr & Morrone rigorous 0.054365000 19.599037 2.2270593
-    ## 10:  0.10133839 Burr & Morrone   simple 0.114050825  3.419695 1.5155889
-    ## 11:  0.12091356 Burr & Morrone rigorous 0.053715287 20.056533 2.2833886
-    ## 12:  0.12091356 Burr & Morrone   simple 0.134864886  3.094961 1.2676316
-    ## 13:  0.14426999 Burr & Morrone rigorous 0.059112431 19.452248 2.2065747
-    ## 14:  0.14426999 Burr & Morrone   simple 0.153345875  2.996524 1.1008757
-    ## 15:  0.17213810 Burr & Morrone rigorous 0.059196897 19.858120 2.2569271
-    ## 16:  0.17213810 Burr & Morrone   simple 0.205082493  2.229484 1.1037963
-    ## 17:  0.20538939 Burr & Morrone rigorous 0.063054036 19.602697 2.2239832
-    ## 18:  0.20538939 Burr & Morrone   simple 0.178780833  2.775224 1.0743794
-    ## 19:  0.24506371 Burr & Morrone rigorous 0.058110614 20.874941 2.3789307
-    ## 20:  0.24506371 Burr & Morrone   simple 0.207730603  2.441593 1.0792921
-    ## 21:  0.29240177 Burr & Morrone rigorous 0.057445614 20.909499 2.3811370
-    ## 22:  0.29240177 Burr & Morrone   simple 0.200938192  2.676526 1.0444906
-    ## 23:  0.34888396 Burr & Morrone rigorous 0.063978290 19.979251 2.2675891
-    ## 24:  0.34888396 Burr & Morrone   simple 0.267688244  2.021143 1.0651952
-    ## 25:  0.41627660 Burr & Morrone rigorous 0.068000801 20.149240 2.2883561
-    ## 26:  0.41627660 Burr & Morrone   simple 0.278770301  1.981264 1.0514405
-    ## 27:  0.49668724 Burr & Morrone rigorous 0.074647554 20.014561 2.2714207
-    ## 28:  0.49668724 Burr & Morrone   simple 0.286089819  1.954992 1.0550121
-    ## 29:  0.59263050 Burr & Morrone rigorous 0.048366604 24.170104 2.7349555
-    ## 30:  0.59263050 Burr & Morrone   simple 0.285626355  1.960478 1.0608200
-    ## 31:  0.70710678 Burr & Morrone rigorous 0.054922908 22.767741 2.5866054
-    ## 32:  0.70710678 Burr & Morrone   simple 0.283670657  1.949866 1.0471569
-    ## 33:  0.84369602 Burr & Morrone rigorous 0.044991945 23.264993 2.6378155
-    ## 34:  0.84369602 Burr & Morrone   simple 0.307034600  1.003934 1.0887107
-    ## 35:  1.00666971 Burr & Morrone rigorous 0.041476233 23.811988 2.6942361
-    ## 36:  1.00666971 Burr & Morrone   simple 0.259488539  1.136463 1.1034311
-    ## 37:  1.20112443 Burr & Morrone rigorous 0.092775685 17.917675 3.1369919
-    ## 38:  1.20112443 Burr & Morrone   simple 0.251731666  1.937143 1.0922242
-    ## 39:  1.43314127 Burr & Morrone rigorous 0.043673426 23.212673 2.6308687
-    ## 40:  1.43314127 Burr & Morrone   simple 0.235282727  1.094024 1.1488868
-    ## 41:  1.70997595 Burr & Morrone rigorous 0.042090065 23.896986 3.0256600
-    ## 42:  1.70997595 Burr & Morrone   simple 0.190882238  2.134190 1.2121834
-    ## 43:  2.04028577 Burr & Morrone rigorous 0.043541797 22.812734 2.9113643
-    ## 44:  2.04028577 Burr & Morrone   simple 0.180456059  1.989159 1.1744985
-    ## 45:  2.43440035 Burr & Morrone rigorous 0.036609450 22.156993 2.8402696
-    ## 46:  2.43440035 Burr & Morrone   simple 0.135550408  1.289921 1.2246939
-    ## 47:  2.90464460 Burr & Morrone rigorous 0.031621228 21.344595 2.7488213
-    ## 48:  2.90464460 Burr & Morrone   simple 0.113817444  1.252294 1.2617906
-    ## 49:  3.46572422 Burr & Morrone rigorous 0.027947852 21.081345 2.7185273
-    ## 50:  3.46572422 Burr & Morrone   simple 0.096541485  2.089939 1.2619515
-    ## 51:  4.13518554 Burr & Morrone rigorous 0.044950853 16.690423 2.9703216
-    ## 52:  4.13518554 Burr & Morrone   simple 0.014230947 10.089529 2.9781792
-    ## 53:  4.93396427 Burr & Morrone rigorous 0.034584808 16.742232 2.9779917
-    ## 54:  4.93396427 Burr & Morrone   simple 0.010218929 10.076143 2.9785148
-    ## 55:  5.88704019 Burr & Morrone rigorous 0.022367809 16.312097 2.9149379
-    ## 56:  5.88704019 Burr & Morrone   simple 0.006828965 10.100272 2.9810034
-    ## 57:  7.02421830 Burr & Morrone rigorous 0.017611606 15.716755 2.8229692
-    ## 58:  7.02421830 Burr & Morrone   simple 0.004173026 10.128320 2.9845781
-    ## 59:  8.38106097 Burr & Morrone rigorous 0.009425348 15.670867 2.8162834
-    ## 60:  8.38106097 Burr & Morrone   simple 0.002291224 10.104426 2.9744193
-    ## 61: 10.00000000 Burr & Morrone rigorous 0.006690821 14.408183 3.1623530
-    ## 62: 10.00000000 Burr & Morrone   simple 0.001109919 10.111437 2.9739096
-    ##              SF          model fit_type          a0        a1        a2
-    ##            a3  a4  G       rss
-    ##  1:  9.725416 NaN NA 0.5918945
-    ##  2:  7.171174 NaN NA 1.0521980
-    ##  3:  6.789983 NaN NA 0.5765158
-    ##  4:  7.492601 NaN NA 1.0034037
-    ##  5:  6.788581 NaN NA 0.5578666
-    ##  6:  7.509540 NaN NA 0.9614910
-    ##  7:  6.956530 NaN NA 0.5406605
-    ##  8: 11.547240 NaN NA 0.9115920
-    ##  9:  6.740092 NaN NA 0.5214443
-    ## 10: 12.786511 NaN NA 0.9755169
-    ## 11:  6.605944 NaN NA 0.5052189
-    ## 12: 12.913276 NaN NA 0.9453485
-    ## 13:  6.506880 NaN NA 0.4802044
-    ## 14: 11.871799 NaN NA 0.9040213
-    ## 15:  6.372049 NaN NA 0.4634465
-    ## 16: 15.138219 NaN NA 0.9137791
-    ## 17:  6.255231 NaN NA 0.4500552
-    ## 18: 13.721978 NaN NA 0.8544283
-    ## 19:  6.033481 NaN NA 0.4401330
-    ## 20: 14.936642 NaN NA 0.8438216
-    ## 21:  5.729690 NaN NA 0.4265873
-    ## 22: 14.111088 NaN NA 0.8096419
-    ## 23:  5.602059 NaN NA 0.4284388
-    ## 24: 15.004774 NaN NA 0.8161154
-    ## 25:  5.560992 NaN NA 0.4313405
-    ## 26: 14.967840 NaN NA 0.8022120
-    ## 27:  5.543954 NaN NA 0.4512461
-    ## 28: 14.900233 NaN NA 0.7930784
-    ## 29:  4.522129 NaN NA 0.4477757
-    ## 30: 14.899365 NaN NA 0.7883168
-    ## 31:  4.442191 NaN NA 0.4192351
-    ## 32: 14.909391 NaN NA 0.7894938
-    ## 33:  3.599176 NaN NA 0.4080456
-    ## 34: 28.681466 NaN NA 1.3379733
-    ## 35:  3.111958 NaN NA 0.4132730
-    ## 36: 26.398000 NaN NA 1.3639973
-    ## 37:  5.376894 NaN NA 0.4796745
-    ## 38: 14.731969 NaN NA 0.8347314
-    ## 39:  2.891601 NaN NA 0.4589990
-    ## 40: 27.366201 NaN NA 1.4595339
-    ## 41:  2.212191 NaN NA 0.4581680
-    ## 42: 14.862895 NaN NA 0.9083264
-    ## 43:  2.395020 NaN NA 0.4795370
-    ## 44: 14.625641 NaN NA 0.9681923
-    ## 45:  1.786335 NaN NA 0.4794058
-    ## 46: 27.648905 NaN NA 1.7598585
-    ## 47:  1.440453 NaN NA 0.5141681
-    ## 48: 26.942024 NaN NA 1.9318049
-    ## 49:  1.315550 NaN NA 0.5491851
-    ## 50: 14.622851 NaN NA 1.2822748
-    ## 51:  2.814833 NaN NA 0.5705736
-    ## 52:  6.034422 NaN NA 1.3554746
-    ## 53:  2.515210 NaN NA 0.5887596
-    ## 54:  5.393558 NaN NA 1.5965351
-    ## 55:  1.846599 NaN NA 0.6000988
-    ## 56:  5.993225 NaN NA 1.9547104
-    ## 57:  2.492885 NaN NA 0.6505283
-    ## 58:  6.427108 NaN NA 2.4979317
-    ## 59:  1.898843 NaN NA 0.6589544
-    ## 60:  6.900295 NaN NA 3.3768720
-    ## 61:  2.396094 NaN NA 0.7170691
-    ## 62:  7.106648 NaN NA 4.8618732
-    ##            a3  a4  G       rss
+    ##              SF          model fit_type          a0        a1       a2
+    ##           <num>         <char>   <char>       <num>     <num>    <num>
+    ##  1:  0.05000000 Burr & Morrone rigorous 0.083084711 15.307892 2.384464
+    ##  2:  0.05000000 Burr & Morrone   simple 0.237027640  8.697440 2.652366
+    ##  3:  0.05965832 Burr & Morrone rigorous 0.045646397 19.431653 2.206225
+    ##  4:  0.05965832 Burr & Morrone   simple 0.254789640  8.726802 2.650678
+    ##  5:  0.07118230 Burr & Morrone rigorous 0.049300048 19.279234 2.186592
+    ##  6:  0.07118230 Burr & Morrone   simple 0.273125594  8.725043 2.617888
+    ##  7:  0.08493232 Burr & Morrone rigorous 0.058185552 18.937479 2.143584
+    ##  8:  0.08493232 Burr & Morrone   simple 0.290637085  8.668266 2.564319
+    ##  9:  0.10133839 Burr & Morrone rigorous 0.054365000 19.599037 2.227059
+    ## 10:  0.10133839 Burr & Morrone   simple 0.312166961  8.599832 2.467226
+    ## 11:  0.12091356 Burr & Morrone rigorous 0.053715287 20.056533 2.283389
+    ## 12:  0.12091356 Burr & Morrone   simple 0.329800747  8.436747 2.309690
+    ## 13:  0.14426999 Burr & Morrone rigorous 0.059112431 19.452248 2.206575
+    ## 14:  0.14426999 Burr & Morrone   simple 0.352767394  8.390336 2.269064
+    ## 15:  0.17213810 Burr & Morrone rigorous 0.059196897 19.858120 2.256927
+    ## 16:  0.17213810 Burr & Morrone   simple 0.374575035  8.242764 2.158668
+    ## 17:  0.20538939 Burr & Morrone rigorous 0.063054036 19.602697 2.223983
+    ## 18:  0.20538939 Burr & Morrone   simple 0.399485084  8.122389 2.074788
+    ## 19:  0.24506371 Burr & Morrone rigorous 0.058110614 20.874941 2.378931
+    ## 20:  0.24506371 Burr & Morrone   simple 0.169417519 13.296131 3.321731
+    ## 21:  0.29240177 Burr & Morrone rigorous 0.057445614 20.909499 2.381137
+    ## 22:  0.29240177 Burr & Morrone   simple 0.173188093 13.599469 3.404421
+    ## 23:  0.34888396 Burr & Morrone rigorous 0.063978290 19.979251 2.267589
+    ## 24:  0.34888396 Burr & Morrone   simple 0.177007785 13.777435 3.445765
+    ## 25:  0.41627660 Burr & Morrone rigorous 0.068000801 20.149240 2.288356
+    ## 26:  0.41627660 Burr & Morrone   simple 0.222713963 11.667616 3.084133
+    ## 27:  0.49668724 Burr & Morrone rigorous 0.074647554 20.014561 2.271421
+    ## 28:  0.49668724 Burr & Morrone   simple 0.230919818 11.540661 3.093363
+    ## 29:  0.59263050 Burr & Morrone rigorous 0.048366604 24.170104 2.734956
+    ## 30:  0.59263050 Burr & Morrone   simple 0.259115347 10.645117 2.917383
+    ## 31:  0.70710678 Burr & Morrone rigorous 0.054922908 22.767741 2.586605
+    ## 32:  0.70710678 Burr & Morrone   simple 0.190237891 13.884428 3.218539
+    ## 33:  0.84369602 Burr & Morrone rigorous 0.044991945 23.264993 2.637815
+    ## 34:  0.84369602 Burr & Morrone   simple 0.236221628 11.408302 3.165174
+    ## 35:  1.00666971 Burr & Morrone rigorous 0.041476233 23.811988 2.694236
+    ## 36:  1.00666971 Burr & Morrone   simple 0.228804203 11.520901 3.218430
+    ## 37:  1.20112443 Burr & Morrone rigorous 0.092775685 17.917675 3.136992
+    ## 38:  1.20112443 Burr & Morrone   simple 0.219022236 11.622047 3.265260
+    ## 39:  1.43314127 Burr & Morrone rigorous 0.043673426 23.212673 2.630869
+    ## 40:  1.43314127 Burr & Morrone   simple 0.205698359 11.824950 3.329052
+    ## 41:  1.70997595 Burr & Morrone rigorous 0.042090065 23.896986 3.025660
+    ## 42:  1.70997595 Burr & Morrone   simple 0.186454861 12.060123 3.395858
+    ## 43:  2.04028577 Burr & Morrone rigorous 0.043541797 22.812734 2.911364
+    ## 44:  2.04028577 Burr & Morrone   simple 0.163858896 12.353134 3.468048
+    ## 45:  2.43440035 Burr & Morrone rigorous 0.036609450 22.156993 2.840270
+    ## 46:  2.43440035 Burr & Morrone   simple 0.171368978 11.352028 3.256118
+    ## 47:  2.90464460 Burr & Morrone rigorous 0.031621228 21.344595 2.748821
+    ## 48:  2.90464460 Burr & Morrone   simple 0.132404116 12.743465 3.554236
+    ## 49:  3.46572422 Burr & Morrone rigorous 0.027947852 21.081345 2.718527
+    ## 50:  3.46572422 Burr & Morrone   simple 0.134197137 10.860770 3.156294
+    ## 51:  4.13518554 Burr & Morrone rigorous 0.044950853 16.690423 2.970322
+    ## 52:  4.13518554 Burr & Morrone   simple 0.105890281 11.069115 3.207372
+    ## 53:  4.93396427 Burr & Morrone rigorous 0.034584808 16.742232 2.977992
+    ## 54:  4.93396427 Burr & Morrone   simple 0.090874195 10.655448 3.113091
+    ## 55:  5.88704019 Burr & Morrone rigorous 0.022367809 16.312097 2.914938
+    ## 56:  5.88704019 Burr & Morrone   simple 0.059561278 11.274835 3.256565
+    ## 57:  7.02421830 Burr & Morrone rigorous 0.017611606 15.716755 2.822969
+    ## 58:  7.02421830 Burr & Morrone   simple 0.041713592 10.079440 2.980627
+    ## 59:  8.38106097 Burr & Morrone rigorous 0.009425348 15.670867 2.816283
+    ## 60:  8.38106097 Burr & Morrone   simple 0.023927412 10.070033 2.979932
+    ## 61: 10.00000000 Burr & Morrone rigorous 0.006690821 14.408183 3.162353
+    ## 62: 10.00000000 Burr & Morrone   simple 0.012914814 10.068148 2.979436
+    ##              SF          model fit_type          a0        a1       a2
+    ##            a3    a4     G       rss
+    ##         <num> <num> <num>     <num>
+    ##  1:  9.725416   NaN    NA 0.5918945
+    ##  2: 19.811016   NaN    NA 0.7830663
+    ##  3:  6.789983   NaN    NA 0.5765158
+    ##  4: 20.045816   NaN    NA 0.7795097
+    ##  5:  6.788581   NaN    NA 0.5578666
+    ##  6: 20.262285   NaN    NA 0.7759936
+    ##  7:  6.956530   NaN    NA 0.5406605
+    ##  8: 20.387114   NaN    NA 0.7724175
+    ##  9:  6.740092   NaN    NA 0.5214443
+    ## 10: 20.565488   NaN    NA 0.7689082
+    ## 11:  6.605944   NaN    NA 0.5052189
+    ## 12: 20.476986   NaN    NA 0.7654497
+    ## 13:  6.506880   NaN    NA 0.4802044
+    ## 14: 20.853224   NaN    NA 0.7620256
+    ## 15:  6.372049   NaN    NA 0.4634465
+    ## 16: 20.964405   NaN    NA 0.7590258
+    ## 17:  6.255231   NaN    NA 0.4500552
+    ## 18: 21.256707   NaN    NA 0.7565703
+    ## 19:  6.033481   NaN    NA 0.4401330
+    ## 20: 12.009567   NaN    NA 0.5978596
+    ## 21:  5.729690   NaN    NA 0.4265873
+    ## 22: 11.807474   NaN    NA 0.5865403
+    ## 23:  5.602059   NaN    NA 0.4284388
+    ## 24: 11.587991   NaN    NA 0.5766654
+    ## 25:  5.560992   NaN    NA 0.4313405
+    ## 26: 11.709021   NaN    NA 0.6116801
+    ## 27:  5.543954   NaN    NA 0.4512461
+    ## 28: 11.512826   NaN    NA 0.6101449
+    ## 29:  4.522129   NaN    NA 0.4477757
+    ## 30: 11.568665   NaN    NA 0.6294437
+    ## 31:  4.442191   NaN    NA 0.4192351
+    ## 32: 10.604232   NaN    NA 0.5698066
+    ## 33:  3.599176   NaN    NA 0.4080456
+    ## 34: 10.539452   NaN    NA 0.6048691
+    ## 35:  3.111958   NaN    NA 0.4132730
+    ## 36: 10.015824   NaN    NA 0.6045999
+    ## 37:  5.376894   NaN    NA 0.4796745
+    ## 38:  9.419019   NaN    NA 0.6080660
+    ## 39:  2.891601   NaN    NA 0.4589990
+    ## 40:  8.717136   NaN    NA 0.6135596
+    ## 41:  2.212191   NaN    NA 0.4581680
+    ## 42:  7.832594   NaN    NA 0.6219274
+    ## 43:  2.395020   NaN    NA 0.4795370
+    ## 44:  6.839410   NaN    NA 0.6334491
+    ## 45:  1.786335   NaN    NA 0.4794058
+    ## 46:  7.358158   NaN    NA 0.6646793
+    ## 47:  1.440453   NaN    NA 0.5141681
+    ## 48:  5.614881   NaN    NA 0.6782668
+    ## 49:  1.315550   NaN    NA 0.5491851
+    ## 50:  6.588323   NaN    NA 0.7071591
+    ## 51:  2.814833   NaN    NA 0.5705736
+    ## 52:  5.928316   NaN    NA 0.7185300
+    ## 53:  2.515210   NaN    NA 0.5887596
+    ## 54:  6.087239   NaN    NA 0.7428257
+    ## 55:  1.846599   NaN    NA 0.6000988
+    ## 56:  5.120855   NaN    NA 0.7452479
+    ## 57:  2.492885   NaN    NA 0.6505283
+    ## 58:  5.408744   NaN    NA 0.7693013
+    ## 59:  1.898843   NaN    NA 0.6589544
+    ## 60:  4.978939   NaN    NA 0.7754218
+    ## 61:  2.396094   NaN    NA 0.7170691
+    ## 62:  4.974296   NaN    NA 0.7873461
+    ##            a3    a4     G       rss
 
 ``` r
 # model comparison?
@@ -1701,13 +1715,13 @@ t.test(y = Kelly_IRF_coefs[model=="Bergen & Wilson" & fit_type=="rigorous", rss]
     ##  Paired t-test
     ## 
     ## data:  Kelly_IRF_coefs[model == "Burr & Morrone" & fit_type == "rigorous", rss] and Kelly_IRF_coefs[model == "Bergen & Wilson" & fit_type == "rigorous", rss]
-    ## t = 33.761, df = 30, p-value < 2.2e-16
-    ## alternative hypothesis: true difference in means is not equal to 0
+    ## t = 33.76, df = 30, p-value < 2.2e-16
+    ## alternative hypothesis: true mean difference is not equal to 0
     ## 95 percent confidence interval:
-    ##  0.3719022 0.4197942
+    ##  0.3719070 0.4197998
     ## sample estimates:
-    ## mean of the differences 
-    ##               0.3958482
+    ## mean difference 
+    ##       0.3958534
 
 # 4. Create a continuous TRF space and save it for later
 
@@ -1725,7 +1739,7 @@ p_irf_burrmorrone <- ggplot(data = Kelly_IRFs, aes(x = irf_time, y = irf_burr, c
 p_irf_burrmorrone
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ``` r
 # Bergen & Wilson
@@ -1739,7 +1753,7 @@ p_irf_bergenwilson <- ggplot(data = Kelly_IRFs, aes(x = irf_time, y = irf_bergen
 p_irf_bergenwilson
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-2.png)<!-- -->
 
 ``` r
 # IRF surface
@@ -1757,9 +1771,10 @@ p_irf_surface <- ggplot(data = Kelly_IRFs,
 p_irf_surface
 ```
 
-    ## Warning: Removed 4588 rows containing missing values (`geom_raster()`).
+    ## Warning: Removed 4588 rows containing missing values or values outside the scale range
+    ## (`geom_raster()`).
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-3.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-3.png)<!-- -->
 
 ``` r
 # on the side, a few exemplary IRFs
@@ -1773,17 +1788,18 @@ p_irf_examples <- ggplot(data = Kelly_IRFs[fit_type=="simple"],
 p_irf_examples
 ```
 
-    ## Warning: Removed 73 rows containing missing values (`geom_line()`).
+    ## Warning: Removed 73 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-4.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-4.png)<!-- -->
 
 ``` r
 # approximate the IRFs with a GAM ~ time x SF
 gam_irf <- bam(data = Kelly_IRFs, subset = fit_type=="simple", 
                formula = irf_bergen ~ 
-                 s(log(SF), k = 16, bs = "cr") + 
-                 s(irf_time, k = 40, bs = "cr") + 
-                 ti(log(SF), irf_time, k = c(16, 40), bs = c("cr", "cr") )
+                 s(log(SF), k = 10, bs = "cr") + # initially 16
+                 s(irf_time, k = 50, bs = "cr") + # initially 40
+                 ti(log(SF), irf_time, k = c(10, 50), bs = c("cr", "cr") )
 )
 summary(gam_irf)
 ```
@@ -1793,26 +1809,26 @@ summary(gam_irf)
     ## Link function: identity 
     ## 
     ## Formula:
-    ## irf_bergen ~ s(log(SF), k = 16, bs = "cr") + s(irf_time, k = 40, 
-    ##     bs = "cr") + ti(log(SF), irf_time, k = c(16, 40), bs = c("cr", 
+    ## irf_bergen ~ s(log(SF), k = 10, bs = "cr") + s(irf_time, k = 50, 
+    ##     bs = "cr") + ti(log(SF), irf_time, k = c(10, 50), bs = c("cr", 
     ##     "cr"))
     ## 
     ## Parametric coefficients:
     ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 9.273e-04  2.905e-07    3192   <2e-16 ***
+    ## (Intercept) 9.293e-04  7.642e-07    1216   <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Approximate significance of smooth terms:
-    ##                         edf Ref.df       F p-value    
-    ## s(log(SF))            14.99   15.0  570118  <2e-16 ***
-    ## s(irf_time)           38.99   39.0 2337705  <2e-16 ***
-    ## ti(log(SF),irf_time) 580.77  584.9   71558  <2e-16 ***
+    ##                          edf Ref.df      F p-value    
+    ## s(log(SF))             8.997    9.0 138117  <2e-16 ***
+    ## s(irf_time)           48.816   49.0 268159  <2e-16 ***
+    ## ti(log(SF),irf_time) 406.122  433.4  13936  <2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## R-sq.(adj) =      1   Deviance explained =  100%
-    ## fREML = -1.1711e+05  Scale est. = 1.1304e-09  n = 13423
+    ## R-sq.(adj) =  0.999   Deviance explained = 99.9%
+    ## fREML = -1.0503e+05  Scale est. = 7.8253e-09  n = 13423
 
 ``` r
 Kelly_IRFs[fit_type=="simple", irf_bergen_gam_pred := predict(gam_irf)]
@@ -1831,13 +1847,16 @@ p_irf_surface_gam <- ggplot(data = Kelly_IRFs[fit_type=="simple"],
 p_irf_surface_gam
 ```
 
-    ## Warning: Removed 2294 rows containing missing values (`geom_raster()`).
+    ## Warning: Removed 2294 rows containing missing values or values outside the scale range
+    ## (`geom_raster()`).
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-10-5.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-5.png)<!-- -->
 
 ``` r
-# save the modelsa
-save(gam_irf, file = "gam_irf.rda", compress = "xz")
+# save the models
+if (do_save) {
+  save(gam_irf, file = "gam_irf.rda", compress = "xz")
+}
 ```
 
 # 5. Fourier analysis of TRFs
@@ -1853,19 +1872,19 @@ for (unique_SF in unique_SFs) {
   # run fft
   single_IRF <- Kelly_IRFs[fit_type=="simple" & SF==unique_SF]
   # zero padding?
-  n = 2^nextpow2(nrow(single_IRF)*10);
+  n = 2^nextpow2(nrow(single_IRF)*10)+1;
   zeros = rep(0, times = n - nrow(single_IRF))
   # from https://de.mathworks.com/help/matlab/ref/fft.html
   Y <- fft(c(single_IRF$irf_bergen_gam_pred, zeros))
   n <- length(Y) # length of signal 
   Fs <- unique(round(1/diff(single_IRF$irf_time/1000))) # in Hz, artifical sampling rate
   # amplitude
-  P2 = abs(Y/n) 
-  P1 = P2[1:(n/2+1)]
+  P2 = abs(Y) #abs(Y/n) 
+  P1 = P2[1:floor(n/2+1)]
   P1[2:(length(P1)-1)] = 2*P1[2:(length(P1)-1)]
   # phase
   pha2 = Imag(Y) 
-  pha1 = pha2[1:(n/2+1)]
+  pha1 = pha2[1:floor(n/2+1)]
   pha1[2:(length(pha1)-1)] = 2*pha1[2:(length(pha1)-1)]
   # save:
   single_IRF_fft <- data.table(SF = unique_SF, 
@@ -1876,11 +1895,13 @@ for (unique_SF in unique_SFs) {
 }
 # plot the fourier domain
 p_fft_amp <- ggplot(IRF_ffts, aes(x = f, y = Y, color = SF, group = SF)) + 
-  coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(1e-7, 1e-3/2)) + 
+  #coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(1e-7, 1e-3/2)) + 
+  coord_cartesian(expand = FALSE, xlim = c(0.5, 50), ylim = c(0.01, 200)) + 
   geom_line(size = 1.5, alpha = 1) + 
   scale_x_log10() + 
-  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x), 
-                labels = trans_format("log10", math_format(10^.x))) + 
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))) +
+  #scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100), labels = c(0.01, 0.1, 1, 10, 100)) + 
   annotation_logticks() + 
   theme_classic(base_size = 12.5) + theme(legend.position = "bottom") + 
   scale_color_viridis_c(trans = "log10") + 
@@ -1902,14 +1923,14 @@ p_fft_combined <- plot_grid(p_groundtruth,
                             p_fft_amp, p_fft_phase, nrow = 1)
 ```
 
-    ## Warning: Transformation introduced infinite values in continuous x-axis
-    ## Transformation introduced infinite values in continuous x-axis
+    ## Warning in scale_x_log10(): log-10 transformation introduced infinite values.
+    ## log-10 transformation introduced infinite values.
 
 ``` r
 p_fft_combined
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 The Fourier spectrum seems to match - how about some more explicit model
 predictions?
@@ -1919,6 +1940,7 @@ predictions?
 gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
                                     SF_now, # single value, for now
                                     irf_gam, # is the SF x time GAM that encodes the IRFs
+                                    gam_df=NULL, # if you want to not specify a GAM, but a DF containing the IRFs
                                     irf_dur=500, # 
                                     t_res, 
                                     pres_dur = 4 * 8 * 28 * (1000/120), 
@@ -1944,11 +1966,16 @@ gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
     }
     stim_tfreq <- x * gaussian # combined
     # extract IRF from GAM
-    gam_df <- data.table(irf_time = seq(0, irf_dur, by = t_res), 
+    if (is.null(gam_df)) {
+      gam_df <- data.table(irf_time = seq(0, irf_dur, by = t_res), 
                          SF = SF_now)
-    gam_df[ , irf_predict := predict.bam(object = irf_gam, newdata = gam_df)]
-    trf_time <- gam_df$irf_time
-    trf <- gam_df$irf_predict
+      gam_df[ , irf_predict := predict.bam(object = irf_gam, newdata = gam_df)]
+      trf_time <- gam_df$irf_time
+      trf <- gam_df$irf_predict
+    } else {
+      trf_time <- as.numeric(t(gam_df[,1]))
+      trf <- as.numeric(t(gam_df[,2]))
+    }
     # convolution
     resp_tfreq <- zapsmall(convolve(stim_tfreq, rev(trf), type = "open"))[1:length(stim_tfreq)]
     # add the systematic asymmetry? (as in Kelly & Savoie, 1978 or Bergen & Wilson, 1984)
@@ -1961,13 +1988,27 @@ gam_and_flicker_to_sens <- function(tfreqs,  # can be numeric vector
   return(sums_tfreqs)
 }
 
+# in case we do not want to read out directly from the GAM
+# e.g., to see the effect of fitting by the GAM
+not_gam_alternative <- Kelly_IRFs[fit_type=="simple", c("irf_time", "irf_bergen", "SF")]
+are_equal(sort(unique(Kelly_stabilized$SF)), sort(unique(not_gam_alternative$SF)))
+```
+
+    ## [1] TRUE
+
+``` r
+# let the TRFs predict
 Kelly_stabilized[ , fit_ultimate := NaN]
 for (r in 1:nrow(Kelly_stabilized)) {
   Kelly_stabilized$fit_ultimate[r] <- gam_and_flicker_to_sens(tfreqs = Kelly_stabilized$TF[r], 
                                                               SF = Kelly_stabilized$SF[r], 
                                                               irf_gam = gam_irf, 
+                                                              gam_df = NULL,
+                                                              #gam_df = not_gam_alternative[SF==Kelly_stabilized$SF[r]], 
                                                               t_res = t_res)
 }
+
+
 
 # have a look:
 p_kelly_surface_predicted <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = log10(fit_ultimate) )) + 
@@ -1981,13 +2022,17 @@ p_kelly_surface_predicted <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF,
   labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
 
 p_kelly_surface_original_and_predicted <- 
-  plot_grid(p_kelly_surface + theme(legend.position = "none") + ggtitle("Kelly's original function"), 
-            p_kelly_surface_predicted + theme(legend.position = "none") + ggtitle("IRF model prediction"), 
+  plot_grid(p_kelly_surface + scale_fill_viridis_d(option = "mako") + 
+              theme(legend.position = "none") + 
+              ggtitle("Kelly's original function"), 
+            p_kelly_surface_predicted + scale_fill_viridis_d(option = "mako") + 
+              theme(legend.position = "none") + 
+              ggtitle("IRF model prediction"), 
             nrow = 1)
 p_kelly_surface_original_and_predicted
 ```
 
-![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 … this is not exactly like Kelly’s surface, but good enough. The TRFs
 are able to explain a very good deal of the data!
@@ -1995,5 +2040,162 @@ are able to explain a very good deal of the data!
 Finally, save this workspace:
 
 ``` r
-save.image(file = "estimate_TRFs_for_SFs.RData", compress = "xz")
+if (do_save) {
+  save.image(file = "estimate_TRFs_for_SFs.RData", compress = "xz")
+}
 ```
+
+Make a plot for the paper:
+
+``` r
+SDECTheme <- function(base_size=15, base_family="Helvetica") { 
+  theme_classic(base_size=base_size, base_family=base_family) %+replace% 
+    theme(
+      # size of text
+      axis.text = element_text(size = base_size), # 0.9*base_size
+      legend.text = element_text(size = base_size),
+      # remove grid horizontal and vertical lines
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background  = element_blank(),
+      # panel boxes
+      panel.border = element_blank(),
+      axis.line = element_line(colour = "grey20"), 
+      # facet strips
+      strip.text = element_text(size = base_size, face = "bold"),
+      strip.background = element_rect(fill="transparent", colour = "transparent"),
+      strip.placement = "outside",
+      # legend
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA)
+    )
+}
+
+#### VERSION 1: surface
+
+# for labeled contours
+require(metR) # needs: sudo apt install libudunits2-dev
+```
+
+    ## Loading required package: metR
+
+    ## 
+    ## Attaching package: 'metR'
+
+    ## The following object is masked from 'package:pracma':
+    ## 
+    ##     cross
+
+``` r
+# define breaks manually
+breaks_here <- (c(0, exp(seq(log(0.12), log(120), length.out = 100))))
+breaks_here_2 <- c(0, 0.1, 1, 7.5, 25, 50, 75, 100, 120)
+# original kelly
+p_kelly_surface_paper <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = sens )) + 
+  geom_contour_fill(bins = 100, breaks = breaks_here) + 
+  geom_contour(colour = "black", alpha = 0.5, breaks = breaks_here_2) + 
+  geom_text_contour(breaks = breaks_here_2,
+                      label.placer = label_placer_fraction(frac = 0.9)) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  scale_fill_viridis_c(trans = "log10", option = "mako", breaks = c(0.1, 1, 10, 100)#, 
+                       # limits = c(0.1, 
+                       #            max(c(Kelly_stabilized$sens, Kelly_stabilized$fit_ultimate)))
+                       ) +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+
+p_kelly_surface_predicted_paper <- ggplot(data = Kelly_stabilized, aes(x = SF, y = TF, z = fit_ultimate )) + 
+  geom_contour_fill(bins = 100, breaks = breaks_here) + 
+  geom_contour(colour = "black", alpha = 0.5, breaks = breaks_here_2) + 
+  geom_text_contour(breaks = breaks_here_2,
+                      label.placer = label_placer_fraction(frac = 0.9)) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE) + 
+  scale_x_log10() + scale_y_log10() + 
+  annotation_logticks() + 
+  scale_fill_viridis_c(trans = "log10", option = "mako", breaks = c(0.1, 1, 10, 100)#, 
+                       # limits = c(0.1, 
+                       #            max(c(Kelly_stabilized$sens, Kelly_stabilized$fit_ultimate)))
+                       ) +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(x = "Spatial frequency [cpd]", y = "Temporal frequency [Hz]", fill = "Contrast\nsensitivity")
+
+plot_grid(p_kelly_surface_paper, p_kelly_surface_predicted_paper)
+```
+
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+``` r
+##### VERSION 2: contrast sensitivity plot
+p_kelly_surface_paper_2 <- ggplot(data = Kelly_stabilized, aes(x = TF, y = sens, 
+                                                               color = SF, group = SF)) + 
+  geom_line(size = 1.5) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE, ylim = c(0.1, 200)) + 
+  scale_y_log10(breaks = c(0.1, 1, 10, 100)) + 
+  scale_x_log10() + 
+  annotation_logticks() + 
+  scale_color_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(color = "SF [cpd]", x = "Temporal frequency [Hz]", 
+       y = "Contrast sensitivity (Kelly, 1979)")
+p_kelly_surface_paper_2
+```
+
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-15-2.png)<!-- -->
+
+``` r
+p_kelly_surface_predicted_paper_2 <- ggplot(data = Kelly_stabilized, aes(x = TF, y = fit_ultimate, 
+                                                               color = SF, group = SF)) + 
+  geom_line(size = 1.5) + 
+  #geom_contour_filled(bins = 30) + geom_contour(bins = 30) + 
+  coord_cartesian(expand = FALSE, ylim = c(0.1, 200)) + 
+  scale_y_log10(breaks = c(0.1, 1, 10, 100)) + 
+  scale_x_log10() + 
+  annotation_logticks() + 
+  scale_color_viridis_c(trans = "log10") +
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  labs(color = "SF [cpd]", x = "Temporal frequency [Hz]", 
+       y = "Predicted contrast sensitivity")
+p_kelly_surface_predicted_paper_2
+```
+
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-15-3.png)<!-- -->
+
+``` r
+# show IRFs
+p_irf_bergenwilson_paper <- ggplot(data = Kelly_IRFs[fit_type=="simple"], 
+                                   aes(x = irf_time, y = irf_bergen, 
+                                       color = SF, group = SF )) + 
+  geom_line(size = 1.5, alpha = 0.8) + 
+  theme_classic(base_size = 12.5) + SDECTheme() + 
+  scale_x_continuous(expand = c(0,0), limits = c(0, 250)) + 
+  scale_color_viridis_c(trans = "log10") + 
+  labs(color = "SF [cpd]", x = "Time [ms]", y = "H(t)") 
+p_irf_bergenwilson_paper
+```
+
+    ## Warning: Removed 2263 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-15-4.png)<!-- -->
+
+``` r
+p_irf_surface_gam_paper <- p_irf_surface_gam + SDECTheme()
+
+# combine all
+plot_grid(p_kelly_surface_paper_2, p_irf_bergenwilson_paper, 
+          p_irf_surface_gam_paper, p_kelly_surface_predicted_paper_2, 
+          nrow = 2, ncol = 2, align = "hv") # export as 5 x 9
+```
+
+    ## Warning: Removed 2263 rows containing missing values or values outside the scale range
+    ## (`geom_line()`).
+
+    ## Warning: Removed 2294 rows containing missing values or values outside the scale range
+    ## (`geom_raster()`).
+
+![](estimate_TRFs_for_SFs_files/figure-gfm/unnamed-chunk-15-5.png)<!-- -->

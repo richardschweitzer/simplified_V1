@@ -1,4 +1,5 @@
 get_gabor_field_heiko <- function(rf_freq_dva, rf_ori, 
+                                  bw = c(0.5945, 0.2965), # according to Heiko's paper
                                   im_size_dva, 
                                   scr.ppd, ppd_scaler = 1 # the ppd scaler can be applied to produce more highres gabor filters
                                   ) {
@@ -17,10 +18,12 @@ get_gabor_field_heiko <- function(rf_freq_dva, rf_ori,
   # get those
   rf_field_zero <- get_log_gabor_heiko(imSize = im_size_pix, 
                                        degSize = im_size_dva, 
+                                       bw = bw, # tuple for SF and Ori
                                        freq = rf_freq_dva, orientation = rf_ori, phase = 0, 
                                        scaler = ppd_scaler)
   rf_field_half <- get_log_gabor_heiko(imSize = im_size_pix, 
                                        degSize = im_size_dva, 
+                                       bw = bw,
                                        freq = rf_freq_dva, orientation = rf_ori, phase = pi*1/2, 
                                        scaler = ppd_scaler)
   # return data

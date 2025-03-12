@@ -1,6 +1,8 @@
 fft_conv_with_torch_3d <- function(x, K, # x is a 3D torch tensor of size [1, t, y, x], K is a torch tensor of [y, x]
                                    use_torch=FALSE, no_CUDA=FALSE, use_half_precision=FALSE, 
-                                   debug_mode=FALSE) {
+                                   debug_mode=FALSE, 
+                                   use_compact_writing=TRUE # to see whether this makes a difference in speed
+                                   ) {
   # based on kernel2dsmooth from package 'smoothie', changed to iterate over time slices
   require(torch)
   require(assertthat)
@@ -108,13 +110,28 @@ fft_conv_with_torch_3d <- function(x, K, # x is a 3D torch tensor of size [1, t,
     # }
     if (use_torch) {
       if (torch_is_nonzero(torch_sum(torch_abs(out[1, t_i, , ])))) { # check for nonzeros
-        out_fft <- torch_fft_fft(torch_fft_fft(self = out[1, t_i, , ], 
-                                               dim = 1), 
-                                 dim = 2)
-        out_fft <- torch_multiply(out_fft, W)
-        out_ifft <- torch_fft_ifft(torch_fft_ifft(self = out_fft, 
-                                                  dim = 1), 
+        if (!use_compact_writing) {
+          out_fft <- torch_fft_fft(torch_fft_fft(self = out[1, t_i, , ], 
+                                                 dim = 1), 
                                    dim = 2)
+          out_fft <- torch_multiply(out_fft, W)
+          out_ifft <- torch_fft_ifft(torch_fft_ifft(self = out_fft, 
+                                                    dim = 1), 
+                                     dim = 2)
+        } else {
+          out_ifft <- 
+            torch_fft_ifft(
+              torch_fft_ifft(
+                torch_multiply(
+                  torch_fft_fft(
+                    torch_fft_fft(
+                      out[1, t_i, , ], 
+                      dim = 1), 
+                    dim = 2), 
+                  W), 
+                dim = 1), 
+              dim = 2)
+        }
         out[1, t_i, , ] <- out_ifft$real
       } 
     } else {
@@ -125,7 +142,13 @@ fft_conv_with_torch_3d <- function(x, K, # x is a 3D torch tensor of size [1, t,
   }
   # clean up
   rm(W)
-  if (use_torch) { rm(out_fft, out_ifft) }
+  if (use_torch) { 
+    if (use_compact_writing) {
+      rm(out_ifft)
+    } else {
+      rm(out_fft, out_ifft) 
+    }
+  }
   # and reduce to original size
   out <- out[1:(dim(out)[1]), 1:(dim(out)[2]), 1:xdim[1], 1:xdim[2]]
   if (debug_mode) {
