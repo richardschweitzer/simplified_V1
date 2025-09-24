@@ -2,7 +2,7 @@
 
 A modeling framework to simulate early visual responses to simple stimuli. 
 
-The model is described in the paper "Early visual signatures and benefits of intra-saccadic motion streaks" (2025) by Schweitzer, Seel, Raisch, & Rolfs, doi: https://doi.org/10.1101/2025.04.23.650153 
+The model is described in the paper "Early visual signatures and benefits of intra-saccadic motion streaks" (2025) by Schweitzer, Seel, Raisch, & Rolfs, published in PLoS Computational Biology (doi: https://doi.org/10.1371/journal.pcbi.1013544). 
 Please cite it if you should use this code somehow. 
 
 First and foremost, have a look at the markdown document [simplified_V1_playground.md](../main/simplified_V1_playground.md) for the model and what it can do. 
